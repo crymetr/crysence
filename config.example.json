@@ -1,0 +1,44 @@
+{
+  "settings": {
+    "cam_index": null,
+    "grace": 15.0,
+    "threshold": 0.50,
+    "min_frac": 0.30,
+    "guarding": false,
+    "lock_mode": "layered"
+  },
+  "notifications": {
+    "toast": true,
+
+    "smtp": {
+      "enabled": false,
+      "host": "smtp.gmail.com",
+      "port": 587,
+      "tls": true,
+      "user": "you@gmail.com",
+      "password": "your-16-char-app-password",
+      "from": "you@gmail.com",
+      "to": "you@gmail.com"
+    },
+
+    "ntfy": {
+      "enabled": false,
+      "server": "https://ntfy.sh",
+      "topic": "pick-a-long-unguessable-topic-name",
+      "token": ""
+    },
+
+    "telegram": {
+      "enabled": false,
+      "bot_token": "123456:ABC-your-bot-token",
+      "chat_id": "your-numeric-chat-id"
+    },
+
+    "resend": {
+      "enabled": false,
+      "api_key": "re_your_key",
+      "from": "crysence@your-verified-domain.com",
+      "to": "you@example.com"
+    }
+  }
+}
