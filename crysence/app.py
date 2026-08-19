@@ -53,7 +53,7 @@ def main():
     root.withdraw()
     engine = Engine()
     cover = Cover(root)
-    state = {"wizard": None}
+    state = {"wizard": None, "update_ver": None, "update_path": None}
 
     def ui_call(fn):
         root.after(0, fn)
@@ -98,6 +98,25 @@ def main():
         logline("guarding " + ("started" if engine.guarding else "stopped")
                 + " (tray)")
 
+    def on_update_ready(version, path):
+        state["update_ver"] = version
+        state["update_path"] = path
+        try:
+            from .notify import _toast
+            _toast("CrySence update ready",
+                   f"Version {version} is ready. Tray icon -> Install update.",
+                   None)
+        except Exception:
+            pass
+        icon.update_menu()
+
+    def apply_update():
+        if state["update_path"]:
+            updater.apply(state["update_path"])
+            engine.stop()
+            icon.stop()
+            ui_call(root.destroy)
+
     icon = pystray.Icon(
         "CrySence", make_icon("idle"), "CrySence",
         menu=Menu(
@@ -109,6 +128,9 @@ def main():
             MenuItem("Open window", lambda i, it: ui_call(window.show),
                      default=True),
             MenuItem("Setup wizard", lambda i, it: ui_call(run_wizard)),
+            MenuItem(lambda it: f"Install update {state['update_ver']}",
+                     lambda i, it: apply_update(),
+                     visible=lambda it: state["update_path"] is not None),
             MenuItem("Quit", lambda i, it: (engine.stop(), i.stop(),
                                             ui_call(root.destroy))),
         ))
@@ -116,7 +138,7 @@ def main():
     threading.Thread(target=icon.run, daemon=True).start()
     root.after(1500, reassert_icon)
     logline("app started")
-    updater.check_in_background()  # signed auto-update (frozen builds only)
+    updater.check_in_background(on_update_ready)  # GitHub Releases (frozen only)
 
     if not engine.cfg["settings"].get("configured"):
         root.after(400, run_wizard)
