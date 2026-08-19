@@ -23,11 +23,13 @@ class Wizard:
         self.top.protocol("WM_DELETE_WINDOW", self._skip)
         self.top.after(200, self.top.lift)
 
-        self.body = ctk.CTkFrame(self.top, fg_color="transparent")
-        self.body.pack(fill="both", expand=True, padx=24, pady=18)
-
+        # Nav bar is pinned to the bottom FIRST so a tall step (with a camera
+        # preview) can never push the Back/Next buttons off-screen.
         nav = ctk.CTkFrame(self.top, fg_color="transparent")
-        nav.pack(fill="x", padx=24, pady=(0, 18))
+        nav.pack(side="bottom", fill="x", padx=24, pady=(0, 18))
+
+        self.body = ctk.CTkFrame(self.top, fg_color="transparent")
+        self.body.pack(side="top", fill="both", expand=True, padx=24, pady=18)
         self.back_btn = ctk.CTkButton(nav, text="Back", width=90,
                                       fg_color=ui.CARD, hover_color="#2A2E37",
                                       command=self._back)
