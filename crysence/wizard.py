@@ -18,7 +18,7 @@ class Wizard:
 
         self.top = ctk.CTkToplevel(root)
         self.top.title("CrySence setup")
-        self.top.geometry("640x780")
+        self.top.geometry("560x740")
         self.top.configure(fg_color=ui.BG)
         self.top.protocol("WM_DELETE_WINDOW", self._skip)
         self.top.after(200, self.top.lift)
@@ -112,8 +112,10 @@ class Wizard:
                     "Choose the camera that shows your face below.")
         cams = models.probe_cameras()
         vals = [f"Camera {i}" for i in cams] or ["-"]
-        menu = ctk.CTkOptionMenu(self.body, values=vals, command=self._pick_cam,
-                                 fg_color=ui.CARD, button_color=ui.CARD)
+        menu = ctk.CTkOptionMenu(
+            self.body, values=vals, command=self._pick_cam, fg_color=ui.CARD,
+            button_color=ui.ACCENT, button_hover_color=ui.ACCENT_HOVER,
+            dropdown_fg_color=ui.CARD)
         if cams:
             idx = self.eng.cam_index if self.eng.cam_index in cams else cams[0]
             self.eng.cam_index = idx
@@ -168,7 +170,8 @@ class Wizard:
         self.channel = ctk.CTkOptionMenu(
             self.body, values=["None", "ntfy (phone push)", "Email (SMTP)",
                                "Telegram", "Resend"], command=self._alert_form,
-            fg_color=ui.CARD, button_color=ui.CARD)
+            fg_color=ui.CARD, button_color=ui.ACCENT,
+            button_hover_color=ui.ACCENT_HOVER, dropdown_fg_color=ui.CARD)
         self.channel.pack(anchor="w")
         self.form = ctk.CTkFrame(self.body, fg_color="transparent")
         self.form.pack(fill="x", pady=10)
@@ -267,7 +270,7 @@ class Wizard:
         if self.show_preview and self.eng.latest_frame is not None:
             disp = ui.annotate(self.eng.latest_frame, self.eng.latest_scored,
                                self.eng.threshold, self.eng.min_frac)
-            self.preview_img = ui.frame_to_image(disp, width=480)
+            self.preview_img = ui.frame_to_image(disp, width=420)
             try:
                 self.preview.configure(image=self.preview_img)
             except Exception:
