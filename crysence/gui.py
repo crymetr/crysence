@@ -1,119 +1,156 @@
-"""Setup / preview window. Hidden by default; the guard runs without it.
-(A modern themed rebuild + first-run wizard come next; this is the functional
-baseline.)"""
+"""Modern main window (customtkinter): dashboard + live preview + settings."""
 
 import time
-import tkinter as tk
-from tkinter import ttk, messagebox
+import customtkinter as ctk
 
-import cv2
-from PIL import Image, ImageTk
-
-from . import models
+from . import models, ui
 from .models import logline
 
-PREVIEW_W = 640
 
-
-class Window:
-    def __init__(self, root, engine):
+class MainWindow:
+    def __init__(self, root, engine, on_run_wizard=None):
         self.root = root
         self.eng = engine
+        self.on_run_wizard = on_run_wizard
         self.visible = False
-        root.title("CrySence")
-        root.protocol("WM_DELETE_WINDOW", self.hide)
+        self._img = None
 
-        self.status = tk.StringVar(value="")
-        self.cam_var = tk.StringVar()
+        root.title("CrySence")
+        root.geometry("620x820")
+        root.configure(fg_color=ui.BG)
+        root.protocol("WM_DELETE_WINDOW", self.hide)
         self._build()
         self.scan()
         self._refresh()
 
+    # ---- layout ---------------------------------------------------------
     def _build(self):
-        pad = {"padx": 6, "pady": 4}
-        top = ttk.Frame(self.root); top.pack(fill="x", **pad)
-        ttk.Label(top, text="Camera:").pack(side="left")
-        self.cam_menu = ttk.Combobox(top, textvariable=self.cam_var, width=12,
-                                     state="readonly")
-        self.cam_menu.pack(side="left", padx=4)
-        self.cam_menu.bind("<<ComboboxSelected>>", self.on_cam)
-        ttk.Button(top, text="Rescan", command=self.scan).pack(side="left")
+        head = ctk.CTkFrame(self.root, fg_color="transparent")
+        head.pack(fill="x", padx=18, pady=(16, 4))
+        ctk.CTkLabel(head, text="CrySence", font=("Segoe UI", 24, "bold"),
+                     text_color=ui.ACCENT).pack(side="left")
+        self.pill = ctk.CTkLabel(head, text="  idle  ", corner_radius=12,
+                                 fg_color=ui.STATE_COLORS["idle"], height=26,
+                                 text_color="#101216",
+                                 font=("Segoe UI", 12, "bold"))
+        self.pill.pack(side="right")
 
-        self.preview = ttk.Label(self.root); self.preview.pack(**pad)
-        ttk.Label(self.root, textvariable=self.status,
-                  font=("Segoe UI", 11, "bold")).pack(**pad)
+        cam = ctk.CTkFrame(self.root, fg_color="transparent")
+        cam.pack(fill="x", padx=18, pady=4)
+        ctk.CTkLabel(cam, text="Camera").pack(side="left", padx=(0, 8))
+        self.cam_menu = ctk.CTkOptionMenu(cam, values=["-"], width=140,
+                                          command=self.on_cam,
+                                          fg_color=ui.CARD,
+                                          button_color=ui.CARD)
+        self.cam_menu.pack(side="left")
+        ctk.CTkButton(cam, text="Rescan", width=70, command=self.scan,
+                      fg_color=ui.CARD, hover_color="#2A2E37").pack(
+                          side="left", padx=8)
 
-        btns = ttk.Frame(self.root); btns.pack(fill="x", **pad)
-        ttk.Button(btns, text="Enroll my face",
-                   command=self.eng.start_enroll).pack(side="left", padx=4)
-        self.guard_btn = ttk.Button(btns, text="Start guarding",
-                                    command=self.toggle_guard)
-        self.guard_btn.pack(side="left", padx=4)
+        self.preview = ctk.CTkLabel(self.root, text="", fg_color=ui.CARD,
+                                    corner_radius=12)
+        self.preview.pack(padx=18, pady=8)
 
-        o1 = ttk.Frame(self.root); o1.pack(fill="x", **pad)
-        ttk.Label(o1, text="Soft dim after (s):").pack(side="left")
-        self.grace = tk.DoubleVar(value=self.eng.grace)
-        ttk.Spinbox(o1, from_=5, to=120, width=5, textvariable=self.grace,
-                    command=self.apply).pack(side="left", padx=4)
-        ttk.Label(o1, text="Recognize:").pack(side="left")
-        self.thr = tk.DoubleVar(value=self.eng.threshold)
-        ttk.Scale(o1, from_=0.30, to=0.75, variable=self.thr, length=110,
-                  command=lambda _=None: self.apply()).pack(side="left", padx=2)
-        self.thr_lbl = ttk.Label(o1, text=""); self.thr_lbl.pack(side="left")
+        self.guard_btn = ctk.CTkButton(
+            self.root, text="Start guarding", height=44,
+            font=("Segoe UI", 15, "bold"), command=self.toggle_guard,
+            fg_color=ui.ACCENT, hover_color=ui.ACCENT_HOVER,
+            text_color="#0B0E10")
+        self.guard_btn.pack(fill="x", padx=18, pady=(4, 6))
 
-        o2 = ttk.Frame(self.root); o2.pack(fill="x", **pad)
-        ttk.Label(o2, text="Stranger 'close' (hard lock):").pack(side="left")
-        self.minf = tk.DoubleVar(value=self.eng.min_frac)
-        ttk.Scale(o2, from_=0.15, to=0.60, variable=self.minf, length=140,
-                  command=lambda _=None: self.apply()).pack(side="left", padx=4)
-        self.minf_lbl = ttk.Label(o2, text=""); self.minf_lbl.pack(side="left")
+        row = ctk.CTkFrame(self.root, fg_color="transparent")
+        row.pack(fill="x", padx=18, pady=2)
+        for txt, cmd in (("Enroll face", self.eng.start_enroll),
+                         ("Pause", self.toggle_pause),
+                         ("Setup wizard", self._wizard)):
+            ctk.CTkButton(row, text=txt, command=cmd, fg_color=ui.CARD,
+                          hover_color="#2A2E37").pack(
+                              side="left", expand=True, fill="x", padx=3)
 
-        o3 = ttk.Frame(self.root); o3.pack(fill="x", **pad)
-        self.cover_var = tk.BooleanVar(value=self.eng.lock_mode == "layered")
-        ttk.Checkbutton(
-            o3, text="Layered: soft dim first, then Windows lock",
-            variable=self.cover_var, command=self.apply_mode).pack(side="left")
+        card = ctk.CTkFrame(self.root, fg_color=ui.CARD, corner_radius=12)
+        card.pack(fill="x", padx=18, pady=10)
+        self.grace = self._slider(card, "Soft dim after (s)", 5, 120,
+                                  self.eng.grace, "{:.0f}")
+        self.thr = self._slider(card, "Recognize (strictness)", 0.30, 0.75,
+                                self.eng.threshold, "{:.2f}")
+        self.minf = self._slider(card, "Stranger 'close' -> hard lock", 0.15,
+                                 0.60, self.eng.min_frac, "{:.2f}")
 
-        notif = self.eng.cfg["notifications"]
-        on = [k for k in ("smtp", "ntfy", "telegram", "resend")
-              if notif.get(k, {}).get("enabled")]
-        ttk.Label(self.root, text="alerts: toast" + (
-            " + " + ", ".join(on) if on else " (configure in config.json)")
-                  ).pack(**pad)
+        modes = ctk.CTkFrame(card, fg_color="transparent")
+        modes.pack(fill="x", padx=14, pady=(2, 10))
+        ctk.CTkLabel(modes, text="Lock mode").pack(side="left")
+        self.mode = ctk.CTkSegmentedButton(
+            modes, values=["Layered", "Windows only"],
+            command=self.apply_mode, selected_color=ui.ACCENT,
+            selected_hover_color=ui.ACCENT_HOVER)
+        self.mode.set("Layered" if self.eng.lock_mode == "layered"
+                      else "Windows only")
+        self.mode.pack(side="right")
 
+        self.alerts_lbl = ctk.CTkLabel(self.root, text="", text_color="#8A8F98",
+                                       font=("Segoe UI", 12))
+        self.alerts_lbl.pack(pady=(0, 12))
+
+    def _slider(self, parent, label, lo, hi, value, fmt):
+        f = ctk.CTkFrame(parent, fg_color="transparent")
+        f.pack(fill="x", padx=14, pady=(10, 0))
+        ctk.CTkLabel(f, text=label, anchor="w").pack(side="left")
+        val = ctk.CTkLabel(f, text=fmt.format(value), width=42,
+                           text_color=ui.ACCENT)
+        val.pack(side="right")
+        s = ctk.CTkSlider(parent, from_=lo, to=hi, progress_color=ui.ACCENT,
+                          button_color=ui.ACCENT, button_hover_color=ui.ACCENT,
+                          command=lambda _v: self.apply())
+        s.set(value)
+        s.pack(fill="x", padx=14, pady=(2, 2))
+        s._val_lbl, s._fmt = val, fmt
+        return s
+
+    # ---- actions --------------------------------------------------------
     def apply(self):
         self.eng.grace = float(self.grace.get())
         self.eng.threshold = float(self.thr.get())
         self.eng.min_frac = float(self.minf.get())
+        for s in (self.grace, self.thr, self.minf):
+            s._val_lbl.configure(text=s._fmt.format(s.get()))
         self.eng.save()
 
-    def apply_mode(self):
-        self.eng.lock_mode = "layered" if self.cover_var.get() else "screen"
+    def apply_mode(self, _v=None):
+        self.eng.lock_mode = ("layered" if self.mode.get() == "Layered"
+                              else "screen")
         self.eng.save()
         logline("lock_mode = " + self.eng.lock_mode)
 
     def scan(self):
         cams = models.probe_cameras()
-        self.cam_menu["values"] = [f"Camera {i}" for i in cams]
+        vals = [f"Camera {i}" for i in cams] or ["-"]
+        self.cam_menu.configure(values=vals)
         if cams:
             idx = self.eng.cam_index if self.eng.cam_index in cams else cams[0]
             self.eng.cam_index = idx
-            self.cam_var.set(f"Camera {idx}")
+            self.cam_menu.set(f"Camera {idx}")
 
-    def on_cam(self, _=None):
-        idx = int(self.cam_var.get().split()[-1])
-        self.eng.cam_index = idx
-        self.eng.release_cam()
-        self.eng.save()
+    def on_cam(self, val):
+        if val.startswith("Camera"):
+            self.eng.cam_index = int(val.split()[-1])
+            self.eng.release_cam()
+            self.eng.save()
 
     def toggle_guard(self):
         if self.eng.owner_feats is None:
-            messagebox.showwarning("CrySence", "Enroll your face first.")
+            self._wizard()
             return
         self.eng.guarding = not self.eng.guarding
         self.eng.last_seen = time.time()
         self.eng.save()
         logline("guarding " + ("started" if self.eng.guarding else "stopped"))
+
+    def toggle_pause(self):
+        self.eng.manual_pause = not self.eng.manual_pause
+
+    def _wizard(self):
+        if self.on_run_wizard:
+            self.on_run_wizard()
 
     def show(self):
         self.visible = True
@@ -124,42 +161,24 @@ class Window:
         self.visible = False
         self.root.withdraw()
 
+    # ---- refresh loop ---------------------------------------------------
     def _refresh(self):
-        self.status.set(self.eng.status)
-        self.thr_lbl.config(text=f"{self.thr.get():.2f}")
-        self.minf_lbl.config(text=f"{self.minf.get():.2f}")
-        self.guard_btn.config(text="Stop guarding" if self.eng.guarding
-                              else "Start guarding")
+        st = self.eng.state
+        self.pill.configure(text=f"  {self.eng.status}  ",
+                            fg_color=ui.STATE_COLORS.get(st, "#8A8F98"))
+        self.guard_btn.configure(
+            text="Stop guarding" if self.eng.guarding else "Start guarding",
+            fg_color=(ui.STATE_COLORS["alert"] if self.eng.guarding
+                      else ui.ACCENT))
+        notif = self.eng.cfg["notifications"]
+        on = [k for k in ("smtp", "ntfy", "telegram", "resend")
+              if notif.get(k, {}).get("enabled")]
+        self.alerts_lbl.configure(
+            text="alerts: toast" + (" + " + ", ".join(on) if on else
+                                    "  (add channels in the wizard)"))
         if self.visible and self.eng.latest_frame is not None:
-            self._render(self.eng.latest_frame, self.eng.latest_scored)
+            disp = ui.annotate(self.eng.latest_frame, self.eng.latest_scored,
+                               self.eng.threshold, self.eng.min_frac)
+            self._img = ui.frame_to_image(disp)
+            self.preview.configure(image=self._img)
         self.root.after(100, self._refresh)
-
-    def _render(self, frame, scored):
-        disp = frame.copy()
-        thr = self.eng.threshold
-        hard_frac = self.eng.min_frac
-        soft_frac = self.eng.min_frac * models.SOFT_NEAR_RATIO
-        h, w = disp.shape[:2]
-        margin = models.INTRUDER_MARGIN
-        for f, best in scored:
-            x, y, fw, fh = f[:4].astype(int)
-            frac = fw / w
-            if best >= thr:
-                color, tag = (0, 200, 0), f"you {best:.2f}"
-            elif best >= thr - margin:
-                color, tag = (0, 220, 220), f"maybe you {best:.2f}"
-            elif frac >= hard_frac:
-                color, tag = (0, 0, 255), f"CLOSE->hard {best:.2f}"
-            elif frac >= soft_frac:
-                color, tag = (0, 140, 255), f"nearby->soft {best:.2f}"
-            else:
-                color, tag = (0, 190, 190), f"far {best:.2f}"
-            cv2.rectangle(disp, (x, y), (x + fw, y + fh), color, 2)
-            cv2.putText(disp, tag, (x, max(y - 8, 12)),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
-        scale = PREVIEW_W / w
-        disp = cv2.resize(disp, (PREVIEW_W, int(h * scale)))
-        rgb = cv2.cvtColor(disp, cv2.COLOR_BGR2RGB)
-        img = ImageTk.PhotoImage(Image.fromarray(rgb))
-        self.preview.configure(image=img)
-        self.preview.image = img
