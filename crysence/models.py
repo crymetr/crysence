@@ -20,6 +20,9 @@ INTRUDER_MARGIN = 0.15    # score between (threshold-margin) and threshold is
                           # "maybe you" (a bad angle) and never triggers.
 OWNER_GRACE = 10          # seconds; a recent confident sighting suppresses a
                           # self-lock from a single bad-angle frame.
+MAYBE_GRACE = 30          # seconds a borderline "maybe you" face still counts as
+                          # present after the last CONFIDENT match (keyboard
+                          # glance ok; a look-alike from cold does not qualify).
 CONSEC_UNKNOWN = 3
 CLIP_SECONDS = 5
 COOLDOWN_AFTER_LOCK = 12

@@ -36,22 +36,19 @@ _kernel32.GetModuleHandleW.restype = wintypes.HMODULE
 
 
 class KeyBlocker:
-    """Blocks Win keys, Alt+Tab/Esc/F4, Ctrl+Esc, Ctrl+Shift+Esc while active.
-    Ctrl+Alt+Del cannot be blocked. Install from the Tk main thread."""
+    """While active, swallows ALL keyboard input so keystrokes can't leak to the
+    app focused underneath the cover (e.g. a password typed by reflex). Only
+    Ctrl+Alt+Del still works - Windows handles it below any user-mode hook, so
+    there is always an escape. Install from the Tk main thread."""
 
     def __init__(self):
         self.hook = None
         self._proc = _HOOKPROC(self._cb)
 
     def _cb(self, nCode, wParam, lParam):
-        if nCode == 0 and wParam in (0x100, 0x104):
-            vk = ctypes.cast(
-                lParam, ctypes.POINTER(_KBDLLHOOKSTRUCT)).contents.vkCode
-            alt = wParam == 0x104
-            ctrl = _user32.GetAsyncKeyState(0x11) & 0x8000
-            if (vk in (0x5B, 0x5C) or (alt and vk in (0x09, 0x1B, 0x73))
-                    or (ctrl and vk == 0x1B)):
-                return 1
+        # 0x100/0x101 = key down/up, 0x104/0x105 = syskey down/up
+        if nCode == 0 and wParam in (0x100, 0x101, 0x104, 0x105):
+            return 1  # eat every key event while the cover is up
         return _user32.CallNextHookEx(None, nCode, wParam, lParam)
 
     def install(self):

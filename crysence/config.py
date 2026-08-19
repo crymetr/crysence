@@ -10,8 +10,10 @@ import os
 import sys
 import json
 import copy
+import threading
 
 APP_NAME = "CrySence"
+_SAVE_LOCK = threading.Lock()
 
 
 def data_dir():
@@ -82,10 +84,17 @@ def load_config():
 
 
 def save_config(cfg):
-    try:
-        tmp = CONFIG_PATH + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump(cfg, fh, indent=2)
-        os.replace(tmp, CONFIG_PATH)
-    except Exception:
-        pass
+    # Serialize writers (Tk slider drags, tray menu, wizard) and use a unique
+    # temp file so two overlapping saves can't corrupt config.json.
+    with _SAVE_LOCK:
+        tmp = f"{CONFIG_PATH}.{os.getpid()}.{threading.get_ident()}.tmp"
+        try:
+            with open(tmp, "w", encoding="utf-8") as fh:
+                json.dump(cfg, fh, indent=2)
+            os.replace(tmp, CONFIG_PATH)
+        except Exception:
+            try:
+                if os.path.exists(tmp):
+                    os.remove(tmp)
+            except OSError:
+                pass

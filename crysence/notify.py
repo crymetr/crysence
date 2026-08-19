@@ -54,10 +54,17 @@ def _smtp(cfg, title, message, image):
         srv.quit()
 
 
+def _hdr(s):
+    # HTTP headers are latin-1; replace anything outside it (e.g. a CJK path)
+    # so a notification is never silently dropped on a UnicodeEncodeError.
+    return s.encode("latin-1", "replace").decode("latin-1")
+
+
 def _ntfy(cfg, title, message, image):
     server = (cfg.get("server") or "https://ntfy.sh").rstrip("/")
     url = f"{server}/{cfg['topic']}"
-    headers = {"Title": title, "Message": message, "User-Agent": _UA}
+    headers = {"Title": _hdr(title), "Message": _hdr(message),
+               "User-Agent": _UA}
     data = b""
     if image and os.path.exists(image):
         headers["Filename"] = os.path.basename(image)
@@ -130,6 +137,19 @@ _BACKENDS = {"smtp": _smtp, "ntfy": _ntfy, "telegram": _telegram,
              "resend": _resend}
 
 
+def _safe_err(e):
+    """Describe an exception WITHOUT leaking secrets. urllib exceptions' repr
+    embeds the full request URL (which contains bot tokens / ntfy topics), so
+    never log the raw exception."""
+    code = getattr(e, "code", None)
+    reason = getattr(e, "reason", None)
+    if code is not None:
+        return f"HTTP {code}"
+    if reason is not None:
+        return f"{type(e).__name__}: {reason}"
+    return type(e).__name__
+
+
 def _send_all(notif, title, message, image):
     if notif.get("toast", True):
         _toast(title, message, image)
@@ -141,7 +161,7 @@ def _send_all(notif, title, message, image):
             fn(cfg, title, message, image)
             logline(f"alert sent via {name}")
         except Exception as e:
-            logline(f"{name} alert failed: {e!r}")
+            logline(f"{name} alert failed: {_safe_err(e)}")
 
 
 def send(notif, title, message, image=None):

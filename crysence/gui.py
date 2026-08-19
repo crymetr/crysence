@@ -137,7 +137,17 @@ class MainWindow:
         logline("lock_mode = " + self.eng.lock_mode)
 
     def scan(self):
-        cams = models.probe_cameras()
+        # Probe on a worker thread; opening DirectShow devices can take seconds
+        # and must not block the Tk mainloop (a stalled pump makes Windows drop
+        # the cover's keyboard hook).
+        import threading
+
+        def work():
+            cams = models.probe_cameras()
+            self.root.after(0, lambda: self._apply_cams(cams))
+        threading.Thread(target=work, daemon=True).start()
+
+    def _apply_cams(self, cams):
         vals = [f"Camera {i}" for i in cams] or ["-"]
         self.cam_menu.configure(values=vals)
         if cams:
@@ -147,8 +157,7 @@ class MainWindow:
 
     def on_cam(self, val):
         if val.startswith("Camera"):
-            self.eng.cam_index = int(val.split()[-1])
-            self.eng.release_cam()
+            self.eng.request_cam(int(val.split()[-1]))
             self.eng.save()
 
     def toggle_guard(self):

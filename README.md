@@ -86,9 +86,10 @@ anywhere you didn't set up.
 
 ## Roadmap
 
-- [ ] Modern themed GUI + first-run setup wizard
-- [ ] Signed auto-update (tufup) + Inno Setup installer (per-user, no admin)
-- [ ] GitHub Actions release pipeline
+- [x] Modern themed GUI + first-run setup wizard
+- [x] Inno Setup installer (per-user, no admin) + portable install
+- [x] GitHub Actions release pipeline
+- [ ] Signed auto-update (tufup)
 
 ## Credits
 
