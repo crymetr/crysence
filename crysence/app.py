@@ -2,7 +2,7 @@
 
 import sys
 import time
-import socket
+import ctypes
 import threading
 
 import customtkinter as ctk
@@ -20,6 +20,7 @@ from .models import logline
 _ICON_COLORS = {"idle": (120, 120, 120), "guard": (45, 212, 191),
                 "paused": (224, 163, 46), "alert": (229, 72, 77),
                 "enroll": (91, 141, 239)}
+_MUTEX_NAME = "CrySence-singleton-5DA096C7-0D55-4077-B2E5-FFAAF55E246D"
 
 
 def make_icon(state):
@@ -29,20 +30,22 @@ def make_icon(state):
     return img
 
 
-def _single_instance():
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    try:
-        s.bind(("127.0.0.1", 50573))
-        s.listen(1)
-        return s
-    except OSError:
+def _acquire_single_instance():
+    """Named mutex; returns the handle (keep it alive) or None if already up."""
+    k32 = ctypes.windll.kernel32
+    handle = k32.CreateMutexW(None, False, _MUTEX_NAME)
+    if k32.GetLastError() == 183:  # ERROR_ALREADY_EXISTS
         return None
+    return handle
 
 
 def main():
-    lock = _single_instance()
+    lock = _acquire_single_instance()
     if lock is None:
         logline("another instance is already running - exiting")
+        ctypes.windll.user32.MessageBoxW(
+            0, "CrySence is already running (see the system tray).",
+            "CrySence", 0x40)
         return
 
     root = ctk.CTk()
@@ -67,20 +70,37 @@ def main():
         if "--hidden" not in sys.argv:
             window.show()
 
-    def on_state(s):
+    def set_icon(s):
         try:
             icon.icon = make_icon(s)
         except Exception:
             pass
 
-    def on_cover(showing):
-        root.after(0, (cover.show if showing else cover.hide))
-    engine.on_cover = on_cover
+    # Engine runs on its own thread; hop to the main thread for the tray update.
+    engine.on_state = lambda s: ui_call(lambda: set_icon(s))
+    engine.on_cover = lambda showing: root.after(
+        0, (cover.show if showing else cover.hide))
+
+    def reassert_icon():
+        # Idempotent re-assert: an update issued before the tray window existed
+        # would otherwise be lost, leaving the icon color stale.
+        set_icon(engine.state)
+        root.after(3000, reassert_icon)
+
+    def toggle_guard():
+        if not engine.guarding and engine.owner_feats is None:
+            ui_call(run_wizard)
+            return
+        engine.guarding = not engine.guarding
+        engine.last_seen = time.time()
+        engine.save()
+        logline("guarding " + ("started" if engine.guarding else "stopped")
+                + " (tray)")
 
     icon = pystray.Icon(
         "CrySence", make_icon("idle"), "CrySence",
         menu=Menu(
-            MenuItem("Guarding", lambda i, it: _toggle_guard(engine),
+            MenuItem("Guarding", lambda i, it: toggle_guard(),
                      checked=lambda it: engine.guarding),
             MenuItem("Pause", lambda i, it: setattr(
                 engine, "manual_pause", not engine.manual_pause),
@@ -91,25 +111,17 @@ def main():
             MenuItem("Quit", lambda i, it: (engine.stop(), i.stop(),
                                             ui_call(root.destroy))),
         ))
-    engine.on_state = on_state
     engine.start()
     threading.Thread(target=icon.run, daemon=True).start()
+    root.after(1500, reassert_icon)
     logline("app started")
 
     if not engine.cfg["settings"].get("configured"):
-        root.after(400, run_wizard)          # first run -> setup wizard
+        root.after(400, run_wizard)
     elif "--hidden" not in sys.argv:
         root.after(300, window.show)
 
     root.mainloop()
-
-
-def _toggle_guard(engine):
-    engine.guarding = not engine.guarding
-    engine.last_seen = time.time()
-    engine.save()
-    logline("guarding " + ("started" if engine.guarding else "stopped")
-            + " (tray)")
 
 
 if __name__ == "__main__":

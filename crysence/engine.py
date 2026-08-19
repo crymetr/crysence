@@ -15,6 +15,14 @@ DETECT_EVERY = 0.4
 ENROLL_SAMPLES = 20
 
 
+def _num(v, default):
+    """Coerce a config value to float, falling back on garbage/None."""
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return float(default)
+
+
 class Engine(threading.Thread):
     def __init__(self):
         super().__init__(daemon=True)
@@ -27,14 +35,14 @@ class Engine(threading.Thread):
         self.detector = None
         self.det_size = None
         self.recognizer = models.make_recognizer()
-        self.owner_feats = (np.load(config.OWNER_PATH)
-                            if os.path.exists(config.OWNER_PATH) else None)
+        self.owner_feats = self._load_owner()
 
-        self.grace = float(s.get("grace", 15))
-        self.threshold = float(s.get("threshold", 0.5))
-        self.min_frac = float(s.get("min_frac", 0.30))
+        self.grace = _num(s.get("grace"), 15.0)
+        self.threshold = _num(s.get("threshold"), 0.50)
+        self.min_frac = _num(s.get("min_frac"), 0.30)
         self.guarding = bool(s.get("guarding", False))
-        self.lock_mode = s.get("lock_mode", "layered")
+        self.lock_mode = ("screen" if s.get("lock_mode") == "screen"
+                          else "layered")
 
         self.manual_pause = False
         self.meeting_paused = False
@@ -54,6 +62,29 @@ class Engine(threading.Thread):
         self.last_seen = time.time()
         self.last_known = 0.0
         self.unknown_streak = 0
+        self.close_streak = 0       # consecutive frames a stranger is "close"
+        self._cam_dirty = False     # UI requested a camera switch
+
+    def _load_owner(self):
+        if not os.path.exists(config.OWNER_PATH):
+            return None
+        try:
+            return np.load(config.OWNER_PATH)
+        except Exception as e:
+            logline("owner_face load failed (corrupt?): " + repr(e))
+            return None
+
+    def _save_owner(self, feats):
+        arr = np.array(feats, dtype=np.float32)
+        tmp = config.OWNER_PATH + ".tmp.npy"
+        np.save(tmp, arr)
+        os.replace(tmp, config.OWNER_PATH)
+
+    def request_cam(self, idx):
+        """Called from the UI thread: switch camera without touching the
+        device here (the engine thread releases/reopens on its next cycle)."""
+        self.cam_index = idx
+        self._cam_dirty = True
 
     # ---- persistence ----------------------------------------------------
     def save(self):
@@ -125,8 +156,29 @@ class Engine(threading.Thread):
         self.latest_scored = scored
         return faces, scored
 
+    def _drop_cover(self):
+        """Lift the soft cover without treating it as a recognition."""
+        if self.covered:
+            self.covered = False
+            self.known_streak = 0
+            if self.on_cover:
+                self.on_cover(False)
+
     def _cycle(self):
         now = time.time()
+
+        # Apply a pending camera switch here, on the engine thread, so the UI
+        # never releases the device while we're inside cap.read().
+        if self._cam_dirty:
+            self._cam_dirty = False
+            self.release_cam()
+
+        # Anything that should stop us guarding also drops a soft cover.
+        interrupted = (self.manual_pause or not self.guarding
+                       or models.mic_in_use()
+                       or models.camera_in_use_by_others())
+        if self.covered and interrupted:
+            self._drop_cover()
 
         if self.covered:
             if self.cap is None and not self.open_cam():
@@ -214,9 +266,8 @@ class Engine(threading.Thread):
         self.set_state("enroll")
         self.status = f"enroll: {len(self.enroll_feats)}/{ENROLL_SAMPLES}"
         if len(self.enroll_feats) >= ENROLL_SAMPLES:
-            np.save(config.OWNER_PATH, np.array(self.enroll_feats,
-                                                dtype=np.float32))
-            self.owner_feats = np.load(config.OWNER_PATH)
+            self._save_owner(self.enroll_feats)
+            self.owner_feats = self._load_owner()
             self.mode = "idle"
             self.status = "enroll done - face saved"
             logline("enrolled owner face")
@@ -237,14 +288,25 @@ class Engine(threading.Thread):
 
         if known:
             self.last_known = now
-        present = known or maybe_you
+        # "maybe you" only counts as present if you were confidently seen
+        # recently (e.g. a keyboard glance). A look-alike who is never confidently
+        # matched will NOT keep the session alive forever.
+        present = known or (maybe_you
+                            and now - self.last_known < models.MAYBE_GRACE)
         if present:
             self.last_seen = now
         absence = now - self.last_seen
 
         stranger_ok = known or (now - self.last_known > models.OWNER_GRACE)
-        stranger_close = stranger_ok and su_frac >= hard_frac
-        stranger_near = stranger_ok and su_frac >= soft_frac
+        # Hysteresis: a stranger must persist several frames before we act, so a
+        # single false-positive detection can't hard-lock the machine.
+        if stranger_ok and su_frac >= soft_frac:
+            self.close_streak += 1
+        else:
+            self.close_streak = 0
+        confirmed = self.close_streak >= models.CONSEC_UNKNOWN
+        stranger_close = confirmed and su_frac >= hard_frac
+        stranger_near = confirmed and su_frac >= soft_frac
         layered = self.lock_mode == "layered"
 
         if self.covered:
@@ -254,8 +316,8 @@ class Engine(threading.Thread):
             elif absence >= models.HARD_ABSENCE:
                 logline(f"HARD from cover: away {absence:.0f}s")
                 self._hard_lock("absence", frame.copy(), from_cover=True)
-            elif present and not stranger_near:
-                self.known_streak = self.known_streak + 1 if known else 0
+            elif known:
+                self.known_streak += 1
                 if self.known_streak >= 2:
                     self._uncover(now)
                 else:
@@ -304,41 +366,57 @@ class Engine(threading.Thread):
         logline("owner recognized - soft cover lifted")
 
     def _hard_lock(self, reason, frame, from_cover=False):
+        # Lock FIRST - the screen must be secured before we spend any time on
+        # evidence, and it must happen even if capture below raises.
         self.set_state("alert")
-        if from_cover:
-            self.covered = False
-            if self.on_cover:
-                self.on_cover(False)
-
-        if reason == "intruder":
-            os.makedirs(config.CAPTURES_DIR, exist_ok=True)
-            stamp = time.strftime("%Y%m%d_%H%M%S")
-            photo = os.path.join(config.CAPTURES_DIR, f"intruder_{stamp}.jpg")
-            clip = os.path.join(config.CAPTURES_DIR, f"intruder_{stamp}.mp4")
-            cv2.imwrite(photo, frame)
-            h, w = frame.shape[:2]
-            writer = cv2.VideoWriter(clip, cv2.VideoWriter_fourcc(*"mp4v"),
-                                     12, (w, h))
-            end = time.time() + models.CLIP_SECONDS
-            while time.time() < end and self.cap is not None:
-                ok, f2 = self.cap.read()
-                if ok:
-                    writer.write(f2)
-            writer.release()
-            when = time.strftime("%Y-%m-%d %H:%M:%S")
-            notify.send(self.cfg["notifications"],
-                        "CrySence: unknown face at your PC",
-                        f"An unknown face was close to your screen at {when}. "
-                        f"The PC was locked. Video clip: {clip}", photo)
-
         self.status = "LOCKED (Windows)"
-        models.lock_workstation()
+        try:
+            models.lock_workstation()
+        finally:
+            if from_cover:
+                self.covered = False
+                if self.on_cover:
+                    self.on_cover(False)
+
+        # Now that the desktop is locked, capture the intruder (camera is still
+        # held) and send alerts. Failures here never leave the screen unlocked.
+        if reason == "intruder":
+            try:
+                self._capture_intruder(frame)
+            except Exception as e:
+                logline("capture failed: " + repr(e))
+
         self.release_cam()
+        self.close_streak = 0
         end = time.time() + models.COOLDOWN_AFTER_LOCK
         while time.time() < end and not self.stop_evt.is_set():
             self.stop_evt.wait(0.5)
         self.last_seen = time.time()
         self.unknown_streak = 0
+
+    def _capture_intruder(self, frame):
+        os.makedirs(config.CAPTURES_DIR, exist_ok=True)
+        stamp = time.strftime("%Y%m%d_%H%M%S")
+        photo = os.path.join(config.CAPTURES_DIR, f"intruder_{stamp}.jpg")
+        clip = os.path.join(config.CAPTURES_DIR, f"intruder_{stamp}.mp4")
+        cv2.imwrite(photo, frame)
+        h, w = frame.shape[:2]
+        writer = cv2.VideoWriter(clip, cv2.VideoWriter_fourcc(*"mp4v"),
+                                 12, (w, h))
+        end = time.time() + models.CLIP_SECONDS
+        while time.time() < end:
+            cap = self.cap
+            if cap is None:
+                break
+            ok, f2 = cap.read()
+            if ok:
+                writer.write(f2)
+        writer.release()
+        when = time.strftime("%Y-%m-%d %H:%M:%S")
+        notify.send(self.cfg["notifications"],
+                    "CrySence: unknown face at your PC",
+                    f"An unknown face was close to your screen at {when}. "
+                    f"The PC was locked. Video clip: {clip}", photo)
 
     def stop(self):
         self.stop_evt.set()

@@ -92,6 +92,8 @@ class Wizard:
 
     def _skip(self):
         # closing the wizard just hides it; settings stay unconfigured
+        if self.eng.mode == "enroll":
+            self.eng.mode = "idle"  # don't keep enrolling whoever is in frame
         self.top.destroy()
         self.on_done(started=False)
 
@@ -125,8 +127,7 @@ class Wizard:
 
     def _pick_cam(self, val):
         if val.startswith("Camera"):
-            self.eng.cam_index = int(val.split()[-1])
-            self.eng.release_cam()
+            self.eng.request_cam(int(val.split()[-1]))
 
     def _enroll(self):
         self._title(
