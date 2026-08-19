@@ -1,40 +1,28 @@
 # Maintaining CrySence
 
-## Signing keys (read this first)
+## Cutting a release (this is the whole flow)
 
-`tools/tuf_init.py` created `keystore/` with the private update-signing keys
-(root / targets / snapshot / timestamp). These are the root of update trust.
+1. Bump the version in **two** places:
+   - `__version__` in `crysence/__init__.py`
+   - `AppVersion` in `installer/crysence.iss`
+2. Commit, then tag and push:
+   ```
+   git tag vX.Y.Z && git push origin vX.Y.Z
+   ```
+3. GitHub Actions (`.github/workflows/release.yml`) builds the app, compiles the
+   per-user Inno installer, packages a portable zip, and attaches both to the
+   GitHub Release. Done.
 
-- **Back up `keystore/` somewhere safe and offline. Never commit or lose it.**
-  Losing the root key means you can never ship a trusted update again (clients
-  would have to reinstall from a fresh download).
-- `keystore/` and `tufrepo/` are gitignored. Only the **public** trust anchor
-  `crysence/data/root.json` and `.tufup-repo-config` are committed.
+## How auto-update works
 
-## Cutting a release
+Packaged builds check `https://api.github.com/repos/saitaskar/crysence/releases/latest`
+on startup (background, non-blocking). If the latest tag is newer than the
+running `__version__`, the app downloads the release's `CrySence-Setup-*.exe`
+into `%LOCALAPPDATA%\CrySence\updates\`, shows a toast, and adds an
+**Install update** item to the tray menu. Clicking it runs the installer
+silently (`/VERYSILENT`); the installer closes the running app, replaces it, and
+relaunches into the tray (`CloseApplications=yes` + a `WizardSilent` relaunch in
+`installer/crysence.iss`).
 
-1. Bump `__version__` in `crysence/__init__.py` and the version in
-   `installer/crysence.iss`.
-2. Tag it: `git tag vX.Y.Z && git push origin vX.Y.Z`.
-   GitHub Actions builds `CrySence-Setup-X.Y.Z.exe` (Inno) and a portable zip
-   and attaches them to the GitHub Release. Users can install from there.
-
-## Enabling signed auto-update (tufup)
-
-The app checks `https://saitaskar.github.io/crysence/` for signed updates. To
-publish one after a build:
-
-1. Build: `python tools/build.py` (produces `dist/CrySence`).
-2. Add + sign the bundle: `python tools/tuf_release.py X.Y.Z`
-   (needs the restored `keystore/`).
-3. Publish `tufrepo/` to GitHub Pages so `metadata/` and `targets/` are served
-   at the site root (a `gh-pages` branch, or `docs/` on `main`, whichever you
-   configure in the repo's Pages settings).
-
-Clients running a build that bundles `root.json` (v0.2.0+) will then pick up the
-new version on next launch and apply it on restart. The very first tufup-served
-version must itself bundle `root.json` and the updater (already wired in
-`crysence/updater.py`).
-
-> Note: target bundles are large (~110 MB full; subsequent versions are patches
-> if `binary_diff` is enabled). GitHub Pages serves them, but watch bandwidth.
+No servers, keys, or GitHub Pages to manage - releasing is just a tag push, the
+same as the installer flow above. Nothing about the update path needs secrets.

@@ -1,65 +1,92 @@
-"""Signed auto-update via tufup (The Update Framework).
+"""Auto-update via GitHub Releases.
 
-On startup (frozen builds only) this checks a signed update repository hosted on
-GitHub Pages. If a newer, properly-signed version is available it is downloaded
-and applied on the next restart. Trust is anchored by the bundled root.json;
-the private signing keys never ship - they stay with the maintainer.
+On startup (packaged builds only) this checks the repo's latest GitHub Release
+in the background. If a newer version is published, it downloads the signed
+installer and hands the path back; the app then offers a one-click install
+(runs the installer silently and relaunches). No servers, keys, or Pages to
+manage - releases are produced by CI on a tag.
 
-Any failure here (offline, host down, bad metadata) is swallowed: updates must
-never crash or block the app.
+Every failure here is swallowed: an update check must never crash or block.
 """
 
 import os
 import sys
-import shutil
+import json
 import threading
-from pathlib import Path
+import subprocess
+import urllib.request
 
 from . import config
 from .models import logline
 from . import __version__
 
-APP_NAME = "CrySence"
-METADATA_BASE_URL = "https://saitaskar.github.io/crysence/metadata/"
-TARGET_BASE_URL = "https://saitaskar.github.io/crysence/targets/"
+REPO = "saitaskar/crysence"
+API_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
+_UA = "CrySence-updater"
 
 
-def _run():
+def _ver(s):
+    parts = []
+    for p in str(s).lstrip("v").split("."):
+        try:
+            parts.append(int(p))
+        except ValueError:
+            break
+    return tuple(parts)
+
+
+def _is_newer(remote, local):
+    return bool(remote) and _ver(remote) > _ver(local)
+
+
+def _run(on_ready):
     if not getattr(sys, "frozen", False):
-        return  # only the packaged app updates itself
-    try:
-        from tufup.client import Client
-    except Exception:
         return
-
-    install_dir = Path(sys.executable).parent
-    metadata_dir = Path(config.DATA) / "metadata"
-    target_dir = Path(config.DATA) / "targets"
-    metadata_dir.mkdir(parents=True, exist_ok=True)
-    target_dir.mkdir(parents=True, exist_ok=True)
-
-    # Seed the trust anchor (bundled, public) on first run.
-    trusted = metadata_dir / "root.json"
-    seed = Path(config.resource_dir()) / "root.json"
-    if not trusted.exists():
-        if not seed.exists():
-            return
-        shutil.copy(seed, trusted)
-
     try:
-        client = Client(
-            app_name=APP_NAME, app_install_dir=install_dir,
-            current_version=__version__, metadata_dir=metadata_dir,
-            metadata_base_url=METADATA_BASE_URL, target_dir=target_dir,
-            target_base_url=TARGET_BASE_URL)
-        new = client.check_for_updates()
-        if new:
-            logline(f"update available: {new}")
-            # Downloads and stages the swap; it applies when the app exits.
-            client.download_and_apply_update(skip_confirmation=True)
+        req = urllib.request.Request(
+            API_URL, headers={"User-Agent": _UA,
+                              "Accept": "application/vnd.github+json"})
+        with urllib.request.urlopen(req, timeout=15) as r:
+            data = json.load(r)
+        tag = (data.get("tag_name") or "").lstrip("v")
+        if not _is_newer(tag, __version__):
+            return
+        asset = next(
+            (a for a in data.get("assets", [])
+             if a["name"].lower().startswith("crysence-setup")
+             and a["name"].lower().endswith(".exe")), None)
+        if not asset:
+            return
+
+        updir = os.path.join(config.DATA, "updates")
+        os.makedirs(updir, exist_ok=True)
+        dest = os.path.join(updir, asset["name"])
+        if not (os.path.exists(dest)
+                and os.path.getsize(dest) == asset.get("size")):
+            dl = urllib.request.Request(
+                asset["browser_download_url"], headers={"User-Agent": _UA})
+            tmp = dest + ".part"
+            with urllib.request.urlopen(dl, timeout=120) as resp, \
+                    open(tmp, "wb") as fh:
+                while True:
+                    chunk = resp.read(1 << 16)
+                    if not chunk:
+                        break
+                    fh.write(chunk)
+            os.replace(tmp, dest)
+        logline(f"update {tag} downloaded")
+        on_ready(tag, dest)
     except Exception as e:
         logline("update check failed: " + repr(e))
 
 
-def check_in_background():
-    threading.Thread(target=_run, daemon=True).start()
+def check_in_background(on_ready):
+    threading.Thread(target=_run, args=(on_ready,), daemon=True).start()
+
+
+def apply(installer_path):
+    """Run the downloaded installer silently. The installer closes the running
+    app, replaces it, and relaunches into the tray."""
+    subprocess.Popen(
+        [installer_path, "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"],
+        close_fds=True)

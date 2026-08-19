@@ -3,7 +3,7 @@
 ; Output: dist\CrySence-Setup-<version>.exe
 
 #define AppName "CrySence"
-#define AppVersion "0.1.0"
+#define AppVersion "0.2.0"
 #define AppExe "CrySence.exe"
 #define AppPublisher "saitaskar"
 
@@ -25,6 +25,9 @@ SolidCompression=yes
 WizardStyle=modern
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
+; For in-app updates: close the running CrySence so files can be replaced.
+CloseApplications=yes
+RestartApplications=no
 
 [Files]
 Source: "..\dist\CrySence\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
@@ -47,6 +50,9 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "Launch {#AppName} now"; \
   Flags: nowait postinstall skipifsilent
+; After a silent in-app update, relaunch straight into the tray.
+Filename: "{app}\{#AppExe}"; Parameters: "--hidden"; Flags: nowait; \
+  Check: WizardSilent
 
 [UninstallDelete]
 ; Leave user data (config, enrolled face, captures) unless the user removes it.
