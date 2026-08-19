@@ -21,6 +21,11 @@ resend.key
 settings.json
 .secrets/
 
+# Auto-update signing keys and local TUF repo (never commit private keys)
+keystore/
+tufrepo/
+*.pem
+
 # Editors / OS
 .vscode/
 .idea/
