@@ -11,6 +11,7 @@ from pystray import Menu, MenuItem
 from PIL import Image, ImageDraw
 
 from . import ui  # noqa: F401  (sets appearance mode)
+from . import updater
 from .engine import Engine
 from .gui import MainWindow
 from .cover import Cover
@@ -115,6 +116,7 @@ def main():
     threading.Thread(target=icon.run, daemon=True).start()
     root.after(1500, reassert_icon)
     logline("app started")
+    updater.check_in_background()  # signed auto-update (frozen builds only)
 
     if not engine.cfg["settings"].get("configured"):
         root.after(400, run_wizard)

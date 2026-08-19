@@ -19,6 +19,7 @@ dependencies = [
     "winotify>=1.1",
     "pystray>=0.19",
     "customtkinter>=5.2",
+    "tufup>=0.10",
 ]
 
 [project.urls]
