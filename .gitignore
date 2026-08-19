@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Build artifacts
+build/
+dist/
+*.spec
+
+# CrySence user data must NEVER be committed. It normally lives under
+# %LOCALAPPDATA%\CrySence, but ignore these names anywhere just in case.
+config.json
+owner_face.npy
+captures/
+crysence.log
+*.key
+resend.key
+settings.json
+.secrets/
+
+# Editors / OS
+.vscode/
+.idea/
+Thumbs.db
