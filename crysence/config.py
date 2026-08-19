@@ -46,6 +46,7 @@ DEFAULT_CONFIG = {
         "min_frac": 0.30,         # stranger face size that means "close" (hard)
         "guarding": False,
         "lock_mode": "layered",   # "layered" | "screen"
+        "configured": False,      # set true once the first-run wizard finishes
     },
     "notifications": {
         # Windows toast: no config, on by default.
