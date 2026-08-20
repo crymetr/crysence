@@ -26,8 +26,11 @@ Alt title for r/opensource / r/Python:
 
 ## Body
 
-I got tired of idle-timer screen locks (they fire while you're reading and stay
-open while you're gone), so I built a lock that works on **presence** instead.
+I work in an open office and wanted my screen to stay private without me having
+to think about it — and honestly because I kept walking away and forgetting to
+lock the PC (Windows Hello is disabled on this machine and never behaved the way
+I wanted anyway). Idle-timer locks don't help: they fire while you're reading and
+stay open while you're gone. So I built a lock that works on **presence** instead.
 
 It uses the webcam to tell **me** apart from everyone else (OpenCV YuNet + SFace,
 local ONNX models):
@@ -72,9 +75,12 @@ edge cases. What would you want it to do?
 
 **Body:**
 
-I wanted a screen lock that works on *presence* instead of an idle timer (those
-fire while you're reading and stay open while you're gone), so I built one with
-Claude Code over a few evenings. It's ~1k lines of Python and it's open source.
+I work in an open office and kept walking away without locking my PC (Windows
+Hello is disabled here and never worked the way I wanted), and I wanted my screen
+private by default without thinking about it. Idle-timer locks are useless for
+that — they fire while you're reading and stay open while you're gone. So I built
+a lock that works on *presence* instead, with Claude Code over a few evenings.
+It's ~1k lines of Python and it's open source.
 
 **What it does:** the webcam tells *me* apart from everyone else (OpenCV YuNet
 detection + SFace recognition, local ONNX models). Walk away → the screen dims;
