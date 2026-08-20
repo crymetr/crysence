@@ -123,9 +123,13 @@ Honest edges — a tool that watches your camera shouldn't hide them:
 
 ## Roadmap
 
+- [ ] **Activity log** — a local timeline of lock / unlock and intruder events
+  you can scroll back through, so you can see who came and went while you were
+  away even if you never set up an alert channel.
 - [ ] Liveness / anti-spoof (so a photo can't pass)
 - [ ] Code signing (drop the SmartScreen warning)
 - [ ] Per-app "always allow this face" for a shared desk
+- [ ] Linux and macOS support
 
 ## Changelog
 
