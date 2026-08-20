@@ -18,10 +18,11 @@ account, no telemetry.
 
 ![CrySence dashboard](docs/screenshots/dashboard.png)
 
-_The main window: live preview, the "guarding — present" status pill, and the
-strictness sliders. (Preview blurred here on purpose.) Setup wizard, soft cover,
-and tray shots — plus a short clip of the cover lifting itself — coming next
-(recipe in [`docs/DEMO.md`](docs/DEMO.md))._
+_The main window recognizing its owner — the green box and match score
+(`You 0.83`) mean it knows you. Also here: the camera picker, live preview, and
+the strictness sliders. (Face blurred on purpose.) Setup wizard, soft cover, and
+tray shots — plus a short clip of the cover lifting itself — coming next (recipe
+in [`docs/DEMO.md`](docs/DEMO.md))._
 
 ## Why
 
