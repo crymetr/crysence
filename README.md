@@ -16,19 +16,12 @@ account, no telemetry.
 
 ## Screenshots
 
-<!--
-  Drop faceless PNGs into docs/screenshots/ (see docs/DEMO.md for exactly what to
-  grab and how to keep them faceless), then uncomment this block.
+![CrySence dashboard](docs/screenshots/dashboard.png)
 
-| Setup wizard | Dashboard |
-|---|---|
-| ![wizard](docs/screenshots/wizard.png) | ![dashboard](docs/screenshots/dashboard.png) |
-| **Soft cover** | **Tray** |
-| ![cover](docs/screenshots/cover.png) | ![tray](docs/screenshots/tray.png) |
--->
-
-_A short screen recording of the cover dropping and lifting itself is the money
-shot — recipe in [`docs/DEMO.md`](docs/DEMO.md). Coming soon._
+_The main window: live preview, the "guarding — present" status pill, and the
+strictness sliders. (Preview blurred here on purpose.) Setup wizard, soft cover,
+and tray shots — plus a short clip of the cover lifting itself — coming next
+(recipe in [`docs/DEMO.md`](docs/DEMO.md))._
 
 ## Why
 
