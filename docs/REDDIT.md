@@ -26,36 +26,44 @@ Alt title for r/opensource / r/Python:
 
 ## Body
 
-I work in an open office and wanted my screen to stay private without me having
-to think about it — and honestly because I kept walking away and forgetting to
-lock the PC (Windows Hello is disabled on this machine and never behaved the way
-I wanted anyway). Idle-timer locks don't help: they fire while you're reading and
-stay open while you're gone. So I built a lock that works on **presence** instead.
+I work in an open office. I wanted my screen to stay private without me having to
+think about it, and honestly because I kept getting up and forgetting to lock my
+PC. (Windows Hello is turned off on this machine and never worked the way I wanted
+anyway.)
 
-It uses the webcam to tell **me** apart from everyone else (OpenCV YuNet + SFace,
-local ONNX models):
+Normal auto-lock timers don't really fix this. They lock while you're sitting
+there reading, and they stay open for a while after you walk off. So I made a lock
+that watches whether you're actually there instead.
 
-- Walk away → the screen dims (soft cover); it lifts itself the moment it sees
-  me again, no password.
-- Gone a while, or a stranger leans toward the screen → a real Windows lock, and
-  it snaps a photo + alerts me.
-- On a Teams/Zoom call it releases the camera and pauses automatically.
+It uses the webcam to tell me apart from everyone else. Two small models run
+locally (OpenCV YuNet to find faces, SFace to recognize them), nothing goes to
+the cloud:
 
-**Privacy:** it's all local. No cloud, no account, no telemetry — the only
-network calls are one GitHub update check and whatever alert channel you set up
-yourself, and you can read every one of them in the source. Your face is stored
-as a numeric embedding, not images. Don't trust a binary that watches your
-camera? Run it from source, it's ~1k lines of Python.
+- You walk away and the screen dims (a soft cover). It lifts itself the second it
+  sees your face again. No password.
+- If you're gone a while, or a stranger leans in toward the screen, it does a
+  real Windows lock, snaps a photo, and pings you.
+- If you hop on a Teams or Zoom call, it hands the camera over and pauses on its
+  own, then comes back after.
 
-**Honest limitations:** the soft cover is privacy, not security (Ctrl+Alt+Del
-still works — nothing user-mode can block that). And there's no liveness yet, so
-a good printed photo could fool recognition. It's a convenience + privacy tool,
-not defense against a prepared attacker. Both are called out in the README.
+**Privacy:** everything stays on your machine. No cloud, no account, no tracking.
+The only times it touches the internet are one update check to GitHub and
+whatever alert you set up yourself (email, phone push, and so on), and you can
+read those parts in the source. Your face is saved as a bunch of numbers, not a
+photo. Don't want to trust a program that watches your camera? Run it straight
+from the source code, it's about 1,000 lines of Python.
+
+**Being honest about the limits:** the soft cover is for privacy, not real
+security. Anyone can still hit Ctrl+Alt+Del and close it, no normal app can stop
+that. The real Windows lock is the solid one. There's also no "is this a real
+live face" check yet, so a good printed photo of you could trick it for now. Think
+of it as a convenience and privacy tool, not something that stops a determined
+attacker. All of this is in the README too.
 
 Repo (MIT): https://github.com/saitaskar/crysence
 
-It's early and I'd love feedback, especially on the recognition thresholds and
-edge cases. What would you want it to do?
+It's early and I'd love feedback, especially on the recognition strictness and any
+weird edge cases. What would you want it to do?
 
 ---
 
@@ -71,47 +79,49 @@ edge cases. What would you want it to do?
 
 **Title:**
 
-`I vibe-coded a webcam presence lock that knows me from everyone else — locks when I leave, lets me back in by face, 100% local`
+`I vibe-coded a webcam presence lock that knows me from everyone else. Locks when I leave, lets me back in by face, 100% local`
 
 **Body:**
 
-I work in an open office and kept walking away without locking my PC (Windows
-Hello is disabled here and never worked the way I wanted), and I wanted my screen
-private by default without thinking about it. Idle-timer locks are useless for
-that — they fire while you're reading and stay open while you're gone. So I built
-a lock that works on *presence* instead, with Claude Code over a few evenings.
-It's ~1k lines of Python and it's open source.
+I work in an open office and kept walking away without locking my PC. (Windows
+Hello is off on this machine and never worked how I wanted.) I wanted my screen
+private by default without having to think about it. Normal auto-lock timers
+don't help: they lock while you're reading and stay open after you leave. So I
+built a lock that watches whether you're actually there, using Claude Code over a
+few evenings. It's about 1,000 lines of Python and it's open source.
 
-**What it does:** the webcam tells *me* apart from everyone else (OpenCV YuNet
-detection + SFace recognition, local ONNX models). Walk away → the screen dims;
-it lifts itself the moment it sees me, no password. Gone a while or a stranger
-leans in → a real Windows lock + a photo + an alert. On a Teams/Zoom call it
-releases the camera and pauses automatically.
+**What it does:** the webcam tells me apart from everyone else. Two small local
+models do the work (OpenCV YuNet finds faces, SFace recognizes them). Walk away
+and the screen dims; it lifts itself the moment it sees me, no password. Gone a
+while, or a stranger leans in, and it does a real Windows lock plus a photo and an
+alert. Hop on a Teams or Zoom call and it hands the camera over and pauses on its
+own.
 
-**How I built it (the interesting bits):**
+**How I built it (the interesting parts):**
 
-- **Recognition** is just two ONNX models wired through OpenCV — detect faces
-  with YuNet, embed with SFace, cosine-compare to one enrolled embedding. The
-  hard part wasn't the ML, it was **threshold tuning**: too strict and it locks
-  in your face when you glance at the keyboard, too loose and a coworker passes.
-  I added a "keyboard-glance is still you" grace window and a strictness slider
-  instead of pretending one number fits every webcam.
-- **Meeting-aware pause** was fiddly — I watch for another process grabbing the
-  camera/mic and hand it over, then reclaim it on hang-up, without treating a
-  mid-call *mute* as "call ended."
-- **Best bug:** it kept false-locking at random. Turned out Windows USB power
-  management sleeps the webcam when idle; the dropout read as "you left." Fix
-  was distinguishing "no face" from "no camera."
-- **Packaging** with a coding agent was the surprise time-sink: PyInstaller +
-  a per-user Inno installer + a GitHub Actions release + self-update from GitHub
-  Releases. Getting an unsigned per-user app to update itself cleanly took
-  longer than the recognition engine did.
+- **Recognition** is just those two models wired through OpenCV: find the face,
+  turn it into a list of numbers, compare it to the one face I enrolled. The
+  machine-learning part wasn't the hard bit. Tuning the strictness was. Too
+  strict and it locks in your face when you glance down at the keyboard. Too loose
+  and a coworker walking past counts as you. I added a short "looking at the
+  keyboard is still you" grace window and a strictness slider, instead of
+  pretending one magic number works for every webcam.
+- **The "pause during calls" part** was fiddly. I watch for another app grabbing
+  the camera or mic and let it have it, then take it back when the call ends,
+  without treating a mid-call mute as "call's over."
+- **Favorite bug:** it kept locking at random for no reason. Turned out Windows
+  was putting the webcam to sleep to save power when it looked idle, and that
+  dropout looked exactly like "nobody's there." The fix was teaching it the
+  difference between "no face" and "no camera."
+- **Packaging** was the surprise time sink. Building the installer, making it
+  install per-user with no admin, and getting an unsigned app to quietly update
+  itself from GitHub took longer than the actual face recognition did.
 
-**Honest limits** (in the README too): the soft cover is privacy, not security —
-Ctrl+Alt+Del still kills any user-mode app. And there's no liveness yet, so a
-printed photo could fool recognition. It's a convenience + privacy tool, not
-defense against a prepared attacker.
+**Being honest about the limits** (also in the README): the soft cover is
+privacy, not security. Ctrl+Alt+Del still closes any normal app. And there's no
+live-face check yet, so a printed photo could fool it. It's a convenience and
+privacy tool, not a defense against someone who's really trying.
 
-Repo (MIT): https://github.com/saitaskar/crysence — happy to talk through any of
-the above, especially how others handle recognition thresholds across different
+Repo (MIT): https://github.com/saitaskar/crysence. Happy to go into any of this,
+especially how other people handle recognition strictness across different
 webcams.
