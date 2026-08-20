@@ -83,45 +83,33 @@ weird edge cases. What would you want it to do?
 
 **Body:**
 
-I work in an open office and kept walking away without locking my PC. (Windows
-Hello is off on this machine and never worked how I wanted.) I wanted my screen
-private by default without having to think about it. Normal auto-lock timers
-don't help: they lock while you're reading and stay open after you leave. So I
-built a lock that watches whether you're actually there, using Claude Code over a
-few evenings. It's about 1,000 lines of Python and it's open source.
+I kept getting up in an open office and forgetting to lock my PC (Windows Hello is
+off here and never worked right). Auto-lock timers don't help: they lock while
+you're reading and stay open after you leave. So I built one that locks based on
+whether you're actually there, with Claude Code over a few evenings. ~1,000 lines
+of Python, open source.
 
-**What it does:** the webcam tells me apart from everyone else. Two small local
-models do the work (OpenCV YuNet finds faces, SFace recognizes them). Walk away
-and the screen dims; it lifts itself the moment it sees me, no password. Gone a
-while, or a stranger leans in, and it does a real Windows lock plus a photo and an
-alert. Hop on a Teams or Zoom call and it hands the camera over and pauses on its
-own.
+**What it does:** the webcam recognizes me (two local models: YuNet finds the
+face, SFace matches it). Walk away and the screen dims, then lifts itself the
+moment it sees me, no password. Gone longer, or a stranger leans in, and it
+hard-locks Windows and snaps a photo. It also pauses itself during Teams/Zoom
+calls.
 
-**How I built it (the interesting parts):**
+**The parts that were actually work:**
 
-- **Recognition** is just those two models wired through OpenCV: find the face,
-  turn it into a list of numbers, compare it to the one face I enrolled. The
-  machine-learning part wasn't the hard bit. Tuning the strictness was. Too
-  strict and it locks in your face when you glance down at the keyboard. Too loose
-  and a coworker walking past counts as you. I added a short "looking at the
-  keyboard is still you" grace window and a strictness slider, instead of
-  pretending one magic number works for every webcam.
-- **The "pause during calls" part** was fiddly. I watch for another app grabbing
-  the camera or mic and let it have it, then take it back when the call ends,
-  without treating a mid-call mute as "call's over."
-- **Favorite bug:** it kept locking at random for no reason. Turned out Windows
-  was putting the webcam to sleep to save power when it looked idle, and that
-  dropout looked exactly like "nobody's there." The fix was teaching it the
-  difference between "no face" and "no camera."
-- **Packaging** was the surprise time sink. Building the installer, making it
-  install per-user with no admin, and getting an unsigned app to quietly update
-  itself from GitHub took longer than the actual face recognition did.
+- **Tuning the strictness, not the ML.** Too strict locks in your face when you
+  look at the keyboard; too loose lets a coworker count as you. Ended up with a
+  "glancing down is still you" grace window and a slider.
+- **Pausing during calls:** hand the camera to whatever app grabbed it, take it
+  back when the call ends, don't treat a mute as "call over."
+- **Best bug:** random locks. Windows was sleeping the webcam to save power, and
+  the dropout looked like "nobody's there." Had to tell "no face" apart from
+  "no camera."
+- **Packaging** (installer, per-user, silent self-update from GitHub) took longer
+  than the face recognition did.
 
-**Being honest about the limits** (also in the README): the soft cover is
-privacy, not security. Ctrl+Alt+Del still closes any normal app. And there's no
-live-face check yet, so a printed photo could fool it. It's a convenience and
-privacy tool, not a defense against someone who's really trying.
+**Limits** (also in the README): the soft cover is privacy, not security,
+Ctrl+Alt+Del still closes it. And no live-face check yet, so a printed photo can
+fool it.
 
-Repo (MIT): https://github.com/saitaskar/crysence. Happy to go into any of this,
-especially how other people handle recognition strictness across different
-webcams.
+Repo (MIT): https://github.com/saitaskar/crysence. Happy to get into any of it.
