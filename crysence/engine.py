@@ -23,6 +23,15 @@ def _num(v, default):
         return float(default)
 
 
+def _blank(frame):
+    """A near-black frame means the webcam is asleep / powered down (common with
+    USB power management on laptops), not that the user is absent."""
+    try:
+        return float(frame.mean()) < 8.0
+    except Exception:
+        return False
+
+
 class Engine(threading.Thread):
     def __init__(self):
         super().__init__(daemon=True)
@@ -182,10 +191,13 @@ class Engine(threading.Thread):
 
         if self.covered:
             if self.cap is None and not self.open_cam():
+                self.last_seen = now
                 self.stop_evt.wait(0.5)
                 return
             ok, frame = self.cap.read()
-            if not ok:
+            if not ok or _blank(frame):
+                # camera asleep: keep the cover, but don't let it hard-lock
+                self.last_seen = now
                 self.stop_evt.wait(0.5)
                 return
             self.latest_frame = frame
@@ -227,14 +239,21 @@ class Engine(threading.Thread):
             return
 
         if self.cap is None and not self.open_cam():
-            self.status = "no camera / camera busy"
+            self.last_seen = now  # freeze absence: no camera != user away
+            self.set_state("paused")
+            self.status = "camera unavailable"
             self.stop_evt.wait(1.0)
             return
 
         ok, frame = self.cap.read()
-        if not ok:
-            self.release_cam()
-            self.status = "camera busy"
+        if not ok or _blank(frame):
+            # Webcam asleep / powered down (USB power management), not absence.
+            # Freeze the absence timer so it can't false-lock.
+            if not ok:
+                self.release_cam()
+            self.last_seen = now
+            self.set_state("paused")
+            self.status = "camera unavailable (asleep?)"
             self.stop_evt.wait(1.0)
             return
 
