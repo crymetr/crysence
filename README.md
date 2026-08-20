@@ -16,7 +16,7 @@ account, no telemetry.
 
 ## Screenshots
 
-![CrySence dashboard](docs/screenshots/dashboard.png)
+![CrySence dashboard](docs/screenshots/main-window.png)
 
 _The main window recognizing its owner — the green box and match score
 (`You 0.83`) mean it knows you. Also here: the camera picker, live preview, and
