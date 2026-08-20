@@ -4,6 +4,14 @@ Post to a friendly sub first: **r/coolgithubprojects**, **r/opensource**, or
 **r/Python** (Show & Tell). Save r/privacy and r/windows for after it has a demo
 and a few users.
 
+> **Sub note:** the draft below is the "project + privacy" pitch — good for
+> r/opensource, r/Python, r/coolgithubprojects. **r/vibecoding is different:**
+> their rules ban a bare link (rule 3 — must be "here's the project, here's how I
+> built it") and their dev-tool approval flow (rule 2) is for vibe-coding
+> startups/tools, not a free end-user app like this, so CrySence posts as a
+> *project*, not a *tool submission*. Use the **build-story version at the bottom
+> of this file** for r/vibecoding.
+
 ---
 
 ## Title (r/coolgithubprojects format)
@@ -53,3 +61,51 @@ edge cases. What would you want it to do?
 - Expect "unsigned exe" pushback — point them at run-from-source.
 - Expect "photo can beat it" — agree, it's in the README, liveness is next.
 - A demo GIF in the post itself roughly doubles engagement. Record it first.
+
+---
+
+## r/vibecoding version (build story — rule 3 compliant)
+
+**Title:**
+
+`I vibe-coded a webcam presence lock that knows me from everyone else — locks when I leave, lets me back in by face, 100% local`
+
+**Body:**
+
+I wanted a screen lock that works on *presence* instead of an idle timer (those
+fire while you're reading and stay open while you're gone), so I built one with
+Claude Code over a few evenings. It's ~1k lines of Python and it's open source.
+
+**What it does:** the webcam tells *me* apart from everyone else (OpenCV YuNet
+detection + SFace recognition, local ONNX models). Walk away → the screen dims;
+it lifts itself the moment it sees me, no password. Gone a while or a stranger
+leans in → a real Windows lock + a photo + an alert. On a Teams/Zoom call it
+releases the camera and pauses automatically.
+
+**How I built it (the interesting bits):**
+
+- **Recognition** is just two ONNX models wired through OpenCV — detect faces
+  with YuNet, embed with SFace, cosine-compare to one enrolled embedding. The
+  hard part wasn't the ML, it was **threshold tuning**: too strict and it locks
+  in your face when you glance at the keyboard, too loose and a coworker passes.
+  I added a "keyboard-glance is still you" grace window and a strictness slider
+  instead of pretending one number fits every webcam.
+- **Meeting-aware pause** was fiddly — I watch for another process grabbing the
+  camera/mic and hand it over, then reclaim it on hang-up, without treating a
+  mid-call *mute* as "call ended."
+- **Best bug:** it kept false-locking at random. Turned out Windows USB power
+  management sleeps the webcam when idle; the dropout read as "you left." Fix
+  was distinguishing "no face" from "no camera."
+- **Packaging** with a coding agent was the surprise time-sink: PyInstaller +
+  a per-user Inno installer + a GitHub Actions release + self-update from GitHub
+  Releases. Getting an unsigned per-user app to update itself cleanly took
+  longer than the recognition engine did.
+
+**Honest limits** (in the README too): the soft cover is privacy, not security —
+Ctrl+Alt+Del still kills any user-mode app. And there's no liveness yet, so a
+printed photo could fool recognition. It's a convenience + privacy tool, not
+defense against a prepared attacker.
+
+Repo (MIT): https://github.com/saitaskar/crysence — happy to talk through any of
+the above, especially how others handle recognition thresholds across different
+webcams.
