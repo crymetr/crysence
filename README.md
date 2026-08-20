@@ -1,5 +1,11 @@
 # CrySence
 
+[![Latest release](https://img.shields.io/github/v/release/saitaskar/crysence?color=2DD4BF&label=release)](https://github.com/saitaskar/crysence/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Platform: Windows](https://img.shields.io/badge/platform-Windows-0078D6?logo=windows&logoColor=white)
+![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)
+![100% local](https://img.shields.io/badge/100%25-local-2DD4BF)
+
 **A webcam presence lock for Windows that knows _you_ from everyone else.** It
 locks when you walk away, recognizes your face to bring you back, and if an
 unknown face gets close to your screen it captures a photo and alerts you. It
@@ -8,9 +14,21 @@ account, no telemetry.
 
 ![How CrySence works](docs/how-it-works.svg)
 
-<!-- Demo + screenshots go here once recorded:
-![demo](docs/demo.gif)
+## Screenshots
+
+<!--
+  Drop faceless PNGs into docs/screenshots/ (see docs/DEMO.md for exactly what to
+  grab and how to keep them faceless), then uncomment this block.
+
+| Setup wizard | Dashboard |
+|---|---|
+| ![wizard](docs/screenshots/wizard.png) | ![dashboard](docs/screenshots/dashboard.png) |
+| **Soft cover** | **Tray** |
+| ![cover](docs/screenshots/cover.png) | ![tray](docs/screenshots/tray.png) |
 -->
+
+_A short screen recording of the cover dropping and lifting itself is the money
+shot — recipe in [`docs/DEMO.md`](docs/DEMO.md). Coming soon._
 
 ## Why
 
@@ -18,6 +36,17 @@ An idle-timer lock is dumb: it fires while you're reading and stays open while
 you're gone. CrySence locks on **presence**, not a timer — and because it knows
 your face, it can dim softly and let _you_ back in without a password, while
 still hard-locking for anyone else.
+
+## Features
+
+| | |
+|---|---|
+| 🧠 **Knows your face** | Enroll once (OpenCV YuNet detection + SFace recognition, local ONNX models). It tells you apart from anyone else and lets only you back in. |
+| 🛡️ **Layered locking** | A soft cover drops when you step away and lifts itself the moment it recognizes you, no password. A stranger close to the screen, or a long absence, triggers a real Windows lock. |
+| 📸 **Intruder capture + alert** | An unknown face close to your screen is photographed and clipped locally, with an alert through whatever channel you enabled (Windows toast + optional email / push). |
+| 🎥 **Meeting-aware** | When another app uses your mic or webcam (Teams, Zoom, a browser call), CrySence releases the camera and pauses, then resumes when the call ends. Muting mid-call won't yank the camera back. |
+| ⌨️ **Keyboard-glance safe** | Looking down at your keyboard reads as "still you," so it won't lock in your face. |
+| ♻️ **Auto-updates** | The installer keeps itself current from GitHub Releases — the only outbound call you didn't configure yourself. |
 
 ## Privacy first
 
@@ -35,25 +64,6 @@ This watches your webcam, so trust matters. CrySence is built to be auditable:
 
 Don't trust a binary that watches your camera? **Run it from source** (below) and
 read the ~1k lines yourself.
-
-## What it does
-
-- **Knows your face** — enroll once (OpenCV YuNet detection + SFace recognition,
-  local ONNX models). It tells you apart from anyone else.
-- **Layered locking:**
-  - *Soft cover* — step away and a full-screen cover drops; it lifts itself the
-    moment it recognizes you again, no password. While it's up it swallows the
-    keyboard so nothing leaks to the app underneath.
-  - *Hard lock* — a stranger close to your screen, or a long absence, triggers a
-    real Windows lock.
-- **Intruder capture + alert** — an unknown face close to your screen is
-  photographed and clipped locally, with an alert through whatever channel you
-  enabled (Windows toast + optional email / push).
-- **Meeting-aware** — when another app uses your mic or webcam (Teams, Zoom, a
-  browser call), CrySence releases the camera and pauses, then resumes when the
-  call ends. Muting mid-call won't yank the camera back.
-- **Keyboard-glance safe** — looking down at your keyboard reads as "still you,"
-  so it won't lock in your face.
 
 ## Install
 
@@ -98,7 +108,9 @@ channel in the wizard or in `%LOCALAPPDATA%\CrySence\config.json`
 
 Only fill in what you use. Nothing is sent anywhere you didn't set up.
 
-## Honest limitations
+## Known limitations
+
+Honest edges — a tool that watches your camera shouldn't hide them:
 
 - The **soft cover is privacy, not security** — it can be killed via
   Ctrl+Alt+Del → Task Manager, which no user-mode app can block. The **hard
@@ -106,14 +118,33 @@ Only fill in what you use. Nothing is sent anywhere you didn't set up.
 - **No liveness detection yet.** Recognition is 2D, so a good printed photo of
   you could satisfy it. Treat CrySence as a convenience + privacy tool, not
   defense against a determined, prepared attacker. (Liveness is on the roadmap.)
-- Windows only. Recognition accuracy depends on your webcam and lighting — the
-  strictness slider is there for a reason.
+- **Windows only.** Recognition accuracy depends on your webcam and lighting —
+  the strictness slider is there for a reason.
 
 ## Roadmap
 
 - [ ] Liveness / anti-spoof (so a photo can't pass)
 - [ ] Code signing (drop the SmartScreen warning)
 - [ ] Per-app "always allow this face" for a shared desk
+
+## Changelog
+
+### v0.2.1 — 2026-08-20
+- **Fixed:** no more false lock when the webcam briefly sleeps under USB power management.
+
+### v0.2.0 — 2026-08-19
+- **Added:** self-update straight from GitHub Releases (per-user, no admin).
+- **Added:** packaging — PyInstaller build, per-user Inno Setup installer, portable install, and a GitHub Actions release workflow.
+- **Changed:** hardened after an internal security review.
+
+### v0.1.0 — 2026-08-19
+- Initial release: local webcam presence lock with owner recognition, layered
+  soft/hard lock, meeting-aware pause, and pluggable alerts.
+- Modern CustomTkinter GUI with a first-run setup wizard.
+
+## More projects
+
+Poke around the rest of what I build at **[cryme.tr](https://cryme.tr)**.
 
 ## Credits
 
