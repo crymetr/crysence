@@ -1,95 +1,119 @@
 # CrySence
 
-Webcam presence lock for Windows that knows **you** from everyone else. It locks
-when you leave, dims when someone's hovering, and captures + alerts you if an
-unknown face gets close to your screen. It steps aside automatically for video
-calls. Everything runs **locally** — no cloud, no account, no telemetry.
+**A webcam presence lock for Windows that knows _you_ from everyone else.** It
+locks when you walk away, recognizes your face to bring you back, and if an
+unknown face gets close to your screen it captures a photo and alerts you. It
+gets out of the way for video calls. Everything runs **locally** — no cloud, no
+account, no telemetry.
 
-> Not a real product yet — early, works, and being hardened toward a clean
-> release. Contributions and issues welcome.
+![How CrySence works](docs/how-it-works.svg)
+
+<!-- Demo + screenshots go here once recorded:
+![demo](docs/demo.gif)
+-->
+
+## Why
+
+An idle-timer lock is dumb: it fires while you're reading and stays open while
+you're gone. CrySence locks on **presence**, not a timer — and because it knows
+your face, it can dim softly and let _you_ back in without a password, while
+still hard-locking for anyone else.
+
+## Privacy first
+
+This watches your webcam, so trust matters. CrySence is built to be auditable:
+
+- **100% local.** Face detection, recognition, and captures never leave your
+  machine.
+- **No telemetry, no account, no network calls** — except the one update check
+  to GitHub and the alert channel _you_ choose to configure. That's it, and you
+  can read every one of them in [`crysence/notify.py`](crysence/notify.py) and
+  [`crysence/updater.py`](crysence/updater.py).
+- Your face is stored only as a **numeric embedding** (`owner_face.npy`), never
+  as images.
+- No secrets in this repo. All config lives under `%LOCALAPPDATA%\CrySence\`.
+
+Don't trust a binary that watches your camera? **Run it from source** (below) and
+read the ~1k lines yourself.
 
 ## What it does
 
-- **Knows your face.** Enroll once; it tells you apart from anyone else
-  (OpenCV YuNet detection + SFace recognition, both local ONNX models).
+- **Knows your face** — enroll once (OpenCV YuNet detection + SFace recognition,
+  local ONNX models). It tells you apart from anyone else.
 - **Layered locking:**
-  - *Soft cover* — when you step away or someone lingers nearby, a full-screen
-    cover drops and lifts itself the moment it recognizes you again (no
-    password). While it's up it blocks the common escape hotkeys.
+  - *Soft cover* — step away and a full-screen cover drops; it lifts itself the
+    moment it recognizes you again, no password. While it's up it swallows the
+    keyboard so nothing leaks to the app underneath.
   - *Hard lock* — a stranger close to your screen, or a long absence, triggers a
     real Windows lock.
-- **Intruder capture + alert.** An unknown face close to your screen is
-  photographed and clipped locally, and an alert is sent through whatever
-  channels you enabled (Windows toast + optional email / push).
-- **Meeting-aware.** When another app uses your microphone or webcam (Teams,
-  Zoom, a browser call), CrySence releases the camera and pauses, then resumes
-  when the call ends. Muting mid-call won't yank the camera back.
-- **Keyboard-glance safe.** Looking down at your keyboard reads as "still you,"
+- **Intruder capture + alert** — an unknown face close to your screen is
+  photographed and clipped locally, with an alert through whatever channel you
+  enabled (Windows toast + optional email / push).
+- **Meeting-aware** — when another app uses your mic or webcam (Teams, Zoom, a
+  browser call), CrySence releases the camera and pauses, then resumes when the
+  call ends. Muting mid-call won't yank the camera back.
+- **Keyboard-glance safe** — looking down at your keyboard reads as "still you,"
   so it won't lock in your face.
 
-## Privacy
+## Install
 
-CrySence is built to be trustworthy:
-
-- **100% local.** Face models, matching, and captures never leave your machine.
-- **No telemetry, no account, no network calls** — except the alert channels
-  *you* explicitly configure.
-- **Your face** is stored only as a numeric embedding (`owner_face.npy`), not as
-  images.
-- **No secrets in this repo.** All configuration and credentials live under
-  `%LOCALAPPDATA%\CrySence\config.json`, which is never committed.
-- Captured intruder photos/clips stay in `%LOCALAPPDATA%\CrySence\captures\`.
-
-**Honest limit:** the soft cover is privacy, not security — it can be killed via
-Ctrl+Alt+Del → Task Manager (which no user app can block). The *hard* Windows
-lock is the real thing.
-
-## Install (from source, for now)
-
+### Run from source (recommended if you want to read it first)
 ```
-python -m pip install opencv-python-headless numpy pillow winotify pystray
+git clone https://github.com/saitaskar/crysence
+cd crysence
+python -m pip install opencv-python-headless numpy pillow winotify pystray customtkinter
 python -m crysence
 ```
+A tray icon appears; a first-run wizard walks you through camera, face
+enrollment, lock mode, and (optional) alerts.
 
-A tray icon appears. Right-click → **Open window** → pick your camera →
-**Enroll my face** → **Start guarding**. Close the window; it keeps running in
-the tray.
+### Installer
+Grab `CrySence-Setup-x.y.z.exe` from the
+[latest release](https://github.com/saitaskar/crysence/releases/latest). It's a
+per-user install (no admin) and auto-updates itself from future releases.
 
-(A signed installer with auto-update is on the roadmap — see below.)
-
-## Alerts
-
-Windows toast is always on. For alerts that reach you when you're away from the
-PC, enable one or more channels in `%LOCALAPPDATA%\CrySence\config.json`
-(copy the shape from [`config.example.json`](config.example.json)):
-
-- **SMTP email** — works with any provider. For Gmail, create an
-  [App Password](https://support.google.com/accounts/answer/185833) (a normal
-  password won't work) and use `smtp.gmail.com` / port `587`.
-- **ntfy** — the simplest: pick an unguessable topic, install the
-  [ntfy app](https://ntfy.sh/) on your phone, subscribe to that topic. No
-  account needed; self-hostable.
-- **Telegram** — create a bot via @BotFather, put its token and your chat id in.
-- **Resend** — if you already have a verified domain and API key.
-
-Only fill in what you use; leave the rest `"enabled": false`. Nothing is sent
-anywhere you didn't set up.
+> It isn't code-signed, so SmartScreen will warn ("unknown publisher"). Right
+> click the file → **Properties → Unblock → OK**, then run it. Or just run from
+> source above.
 
 ## Settings (tune in the window, saved to `config.json`)
 
 | Setting | Meaning | Default |
 |---|---|---|
 | Soft dim after (s) | Seconds not present before a soft cover | 15 |
-| Recognize | Match score to count as "you" (raise to be stricter) | 0.50 |
+| Recognize | Match strictness to count as "you" | 0.50 |
 | Stranger close (hard lock) | How big a stranger's face means "at your screen" | 0.30 |
 | Layered | Soft cover first, then hard lock (off = Windows lock only) | on |
 
+## Alerts
+
+Windows toast is always on. To also get notified when you're away, enable a
+channel in the wizard or in `%LOCALAPPDATA%\CrySence\config.json`
+([`config.example.json`](config.example.json) shows the shape):
+
+- **ntfy** — simplest: pick an unguessable topic, subscribe on your phone. No account.
+- **SMTP email** — any provider (Gmail needs an App Password).
+- **Telegram** — a bot token + chat id.
+- **Resend** — if you have a verified domain + API key.
+
+Only fill in what you use. Nothing is sent anywhere you didn't set up.
+
+## Honest limitations
+
+- The **soft cover is privacy, not security** — it can be killed via
+  Ctrl+Alt+Del → Task Manager, which no user-mode app can block. The **hard
+  Windows lock** is the real thing.
+- **No liveness detection yet.** Recognition is 2D, so a good printed photo of
+  you could satisfy it. Treat CrySence as a convenience + privacy tool, not
+  defense against a determined, prepared attacker. (Liveness is on the roadmap.)
+- Windows only. Recognition accuracy depends on your webcam and lighting — the
+  strictness slider is there for a reason.
+
 ## Roadmap
 
-- [x] Modern themed GUI + first-run setup wizard
-- [x] Inno Setup installer (per-user, no admin) + portable install
-- [x] GitHub Actions release pipeline
-- [ ] Signed auto-update (tufup)
+- [ ] Liveness / anti-spoof (so a photo can't pass)
+- [ ] Code signing (drop the SmartScreen warning)
+- [ ] Per-app "always allow this face" for a shared desk
 
 ## Credits
 

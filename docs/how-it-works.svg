@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="380" viewBox="0 0 960 380" font-family="Segoe UI, Arial, sans-serif">
+  <rect width="960" height="380" rx="16" fill="#16181D"/>
+  <text x="32" y="46" fill="#2DD4BF" font-size="24" font-weight="700">CrySence</text>
+  <text x="32" y="70" fill="#8A8F98" font-size="14">webcam presence lock · knows you from everyone else · 100% local</text>
+
+  <!-- stage 1 -->
+  <g>
+    <rect x="32" y="110" width="260" height="150" rx="14" fill="#1E2128" stroke="#2A2E37"/>
+    <circle cx="70" cy="150" r="12" fill="#2DD4BF"/>
+    <text x="92" y="155" fill="#E6E8EC" font-size="16" font-weight="700">Guarding</text>
+    <text x="52" y="192" fill="#B4B8C0" font-size="14">You're recognized and</text>
+    <text x="52" y="214" fill="#B4B8C0" font-size="14">present. Screen stays open.</text>
+    <text x="52" y="244" fill="#8A8F98" font-size="12.5">Looking at the keyboard is fine.</text>
+  </g>
+
+  <path d="M300 185 h44" stroke="#3A3F49" stroke-width="2" marker-end="url(#a)"/>
+  <text x="300" y="175" fill="#8A8F98" font-size="12">you step away</text>
+
+  <!-- stage 2 -->
+  <g>
+    <rect x="356" y="110" width="260" height="150" rx="14" fill="#1E2128" stroke="#2A2E37"/>
+    <circle cx="394" cy="150" r="12" fill="#E0A32E"/>
+    <text x="416" y="155" fill="#E6E8EC" font-size="16" font-weight="700">Soft cover</text>
+    <text x="376" y="192" fill="#B4B8C0" font-size="14">Screen dims. Auto-unlocks</text>
+    <text x="376" y="214" fill="#B4B8C0" font-size="14">the moment it sees you.</text>
+    <text x="376" y="244" fill="#8A8F98" font-size="12.5">No password. Blocks escape keys.</text>
+  </g>
+
+  <path d="M624 185 h44" stroke="#3A3F49" stroke-width="2" marker-end="url(#a)"/>
+  <text x="618" y="175" fill="#8A8F98" font-size="12">gone 5 min, or</text>
+  <text x="618" y="272" fill="#8A8F98" font-size="12">a stranger gets close</text>
+
+  <!-- stage 3 -->
+  <g>
+    <rect x="680" y="110" width="248" height="150" rx="14" fill="#1E2128" stroke="#2A2E37"/>
+    <circle cx="718" cy="150" r="12" fill="#E5484D"/>
+    <text x="740" y="155" fill="#E6E8EC" font-size="16" font-weight="700">Windows lock</text>
+    <text x="700" y="192" fill="#B4B8C0" font-size="14">Real OS lock. An unknown</text>
+    <text x="700" y="214" fill="#B4B8C0" font-size="14">face is photographed +</text>
+    <text x="700" y="236" fill="#B4B8C0" font-size="14">you get an alert.</text>
+  </g>
+
+  <text x="32" y="316" fill="#8A8F98" font-size="13">On a video call? It releases the camera and pauses automatically, then resumes when you hang up.</text>
+  <text x="32" y="342" fill="#8A8F98" font-size="13">Nothing leaves your machine except the alert channel you choose to set up. No account, no telemetry.</text>
+
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#3A3F49"/>
+    </marker>
+  </defs>
+</svg>
