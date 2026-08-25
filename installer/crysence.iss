@@ -5,14 +5,14 @@
 #define AppName "CrySence"
 #define AppVersion "0.2.1"
 #define AppExe "CrySence.exe"
-#define AppPublisher "saitaskar"
+#define AppPublisher "crymetr"
 
 [Setup]
 AppId={{5DA096C7-0D55-4077-B2E5-FFAAF55E246D}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisher={#AppPublisher}
-AppSupportURL=https://github.com/saitaskar/crysence
+AppSupportURL=https://github.com/crymetr/crysence
 DefaultDirName={localappdata}\Programs\{#AppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest

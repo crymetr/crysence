@@ -60,7 +60,7 @@ live face" check yet, so a good printed photo of you could trick it for now. Thi
 of it as a convenience and privacy tool, not something that stops a determined
 attacker. All of this is in the README too.
 
-Repo (MIT): https://github.com/saitaskar/crysence
+Repo (MIT): https://github.com/crymetr/crysence
 
 It's early and I'd love feedback, especially on the recognition strictness and any
 weird edge cases. What would you want it to do?
@@ -112,4 +112,4 @@ calls.
 Ctrl+Alt+Del still closes it. And no live-face check yet, so a printed photo can
 fool it.
 
-Repo (MIT): https://github.com/saitaskar/crysence. Happy to get into any of it.
+Repo (MIT): https://github.com/crymetr/crysence. Happy to get into any of it.

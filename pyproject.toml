@@ -9,7 +9,7 @@ description = "Webcam presence lock with owner recognition, meeting-aware, fully
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
-authors = [{ name = "saitaskar" }]
+authors = [{ name = "crymetr" }]
 keywords = ["security", "privacy", "webcam", "face-recognition", "screen-lock",
             "windows"]
 dependencies = [
@@ -22,8 +22,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/saitaskar/crysence"
-Issues = "https://github.com/saitaskar/crysence/issues"
+Homepage = "https://github.com/crymetr/crysence"
+Issues = "https://github.com/crymetr/crysence/issues"
 
 [project.gui-scripts]
 crysence = "crysence.app:main"

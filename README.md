@@ -1,6 +1,6 @@
 # CrySence
 
-[![Latest release](https://img.shields.io/github/v/release/saitaskar/crysence?color=2DD4BF&label=release)](https://github.com/saitaskar/crysence/releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/crymetr/crysence?color=2DD4BF&label=release)](https://github.com/crymetr/crysence/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Platform: Windows](https://img.shields.io/badge/platform-Windows-0078D6?logo=windows&logoColor=white)
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)
@@ -63,7 +63,7 @@ read the ~1k lines yourself.
 
 ### Run from source (recommended if you want to read it first)
 ```
-git clone https://github.com/saitaskar/crysence
+git clone https://github.com/crymetr/crysence
 cd crysence
 python -m pip install opencv-python-headless numpy pillow winotify pystray customtkinter
 python -m crysence
@@ -73,7 +73,7 @@ enrollment, lock mode, and (optional) alerts.
 
 ### Installer
 Grab `CrySence-Setup-x.y.z.exe` from the
-[latest release](https://github.com/saitaskar/crysence/releases/latest). It's a
+[latest release](https://github.com/crymetr/crysence/releases/latest). It's a
 per-user install (no admin) and auto-updates itself from future releases.
 
 > It isn't code-signed, so SmartScreen will warn ("unknown publisher"). Right

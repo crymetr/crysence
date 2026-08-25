@@ -20,7 +20,7 @@ from . import config
 from .models import logline
 from . import __version__
 
-REPO = "saitaskar/crysence"
+REPO = "crymetr/crysence"
 API_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
 _UA = "CrySence-updater"
 

@@ -15,7 +15,7 @@
 
 ## How auto-update works
 
-Packaged builds check `https://api.github.com/repos/saitaskar/crysence/releases/latest`
+Packaged builds check `https://api.github.com/repos/crymetr/crysence/releases/latest`
 on startup (background, non-blocking). If the latest tag is newer than the
 running `__version__`, the app downloads the release's `CrySence-Setup-*.exe`
 into `%LOCALAPPDATA%\CrySence\updates\`, shows a toast, and adds an
