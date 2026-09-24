@@ -128,6 +128,9 @@ Honest edges — a tool that watches your camera shouldn't hide them:
 
 ## Changelog
 
+### v0.3.1 (2026-09-24)
+- **Fixed:** "Install update" could hang: the app left an invisible process behind and the installer waited forever trying to close it. The app now exits for real, and the installer waits a few seconds, then force-closes a stuck copy. Quit uses the same clean exit.
+
 ### v0.3.0 (2026-09-24)
 - **Fixed:** the soft cover no longer stays up forever when the webcam goes away (for example a monitor-mounted camera when the monitor is switched off). After 6 s without a camera frame it goes to the Windows lock screen.
 - **Fixed:** the cover resizes itself when a monitor is added, removed, or wakes up.
