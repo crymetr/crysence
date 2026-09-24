@@ -128,6 +128,11 @@ Honest edges — a tool that watches your camera shouldn't hide them:
 
 ## Changelog
 
+### v0.3.5 (2026-09-24)
+- **Fixed:** after a camera disconnect the engine could get stuck in an error loop and only came back after a manual Rescan. A camera handle that throws is now closed and reopened automatically.
+- **Fixed:** Rescan could crash the app while the engine was using the camera. All camera probing now runs on the engine thread (Rescan and the setup wizard).
+- **Fixed:** with the monitor webcam off, Windows can give its slot to another camera (for example a closed laptop lid that streams black). After a real disconnect, black frames now count as "camera lost", so the Windows lock still happens. A webcam that just dozes off still doesn't lock.
+
 ### v0.3.4 (2026-09-24)
 - **Fixed:** after the webcam's monitor was switched back on, the app could stay on "camera unavailable (asleep?)" with a frozen preview. A camera that fails or streams only black is now closed and reopened every 5 s until real frames come back. Camera loss, recovery, and blocked reads are written to the log.
 

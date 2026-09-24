@@ -82,6 +82,12 @@ class Engine(threading.Thread):
         self.cam_alive_ts = 0.0
         self.cam_bad_since = 0.0    # first failed/black read of this outage
         self.cam_reopen_ts = 0.0
+        # Set by a real disconnect (read failed/threw, open failed). Until live
+        # video returns, black frames then mean "gone", not "webcam dozing":
+        # with the monitor off, Windows can hand our index to another camera
+        # (a closed laptop lid streams black).
+        self.cam_disrupted = False
+        self._scan_cbs = []         # UI rescan requests, served on this thread
 
     def _load_owner(self):
         if not os.path.exists(config.OWNER_PATH):
@@ -97,6 +103,22 @@ class Engine(threading.Thread):
         tmp = config.OWNER_PATH + ".tmp.npy"
         np.save(tmp, arr)
         os.replace(tmp, config.OWNER_PATH)
+
+    def request_scan(self, cb):
+        """Called from the UI thread: probe cameras on the engine thread and
+        hand the list to cb (on the engine thread). DirectShow must never be
+        driven from two threads at once - that kills the process."""
+        self._scan_cbs.append(cb)
+
+    def _probe(self):
+        """Engine thread only. Releases our device first so it probes too."""
+        self.release_cam()
+        cams = models.probe_cameras()
+        # Never switch away from the user's pick: a missing camera must lock,
+        # not silently fall back to another one.
+        if self.cam_index is None and cams:
+            self.cam_index = cams[0]
+        return cams
 
     def request_cam(self, idx):
         """Called from the UI thread: switch camera without touching the
@@ -120,9 +142,12 @@ class Engine(threading.Thread):
                 self.on_state(s)
 
     def release_cam(self):
-        if self.cap is not None:
-            self.cap.release()
-            self.cap = None
+        cap, self.cap = self.cap, None
+        if cap is not None:
+            try:
+                cap.release()
+            except Exception:
+                pass
 
     def open_cam(self):
         self.release_cam()
@@ -131,9 +156,22 @@ class Engine(threading.Thread):
             self.cam_index = cams[0] if cams else None
         if self.cam_index is None:
             return False
-        self.cap = cv2.VideoCapture(self.cam_index, cv2.CAP_DSHOW)
+        try:
+            cap = cv2.VideoCapture(self.cam_index, cv2.CAP_DSHOW)
+            ok = cap.isOpened()
+        except Exception as e:
+            logline("camera open error: " + repr(e))
+            return False
+        if not ok:
+            self.cam_disrupted = True
+            try:
+                cap.release()
+            except Exception:
+                pass
+            return False
+        self.cap = cap
         self.det_size = None
-        return self.cap.isOpened()
+        return True
 
     def ensure_detector(self, w, h):
         if self.det_size != (w, h):
@@ -162,6 +200,8 @@ class Engine(threading.Thread):
                 self._cycle()
             except Exception as e:
                 logline("engine error: " + repr(e))
+                # Never keep reusing a handle that just threw.
+                self.release_cam()
                 self.stop_evt.wait(1.0)
         self.release_cam()
 
@@ -190,12 +230,20 @@ class Engine(threading.Thread):
         instead of recovering, so a bad stream is dropped and reopened every
         CAM_REOPEN seconds. Returns (ok, frame, usable)."""
         t0 = time.time()
-        ok, frame = self.cap.read()
+        try:
+            ok, frame = self.cap.read()
+        except Exception as e:
+            # A half-removed DirectShow device can throw instead of failing.
+            logline("camera read error: " + repr(e))
+            ok, frame = False, None
         now = time.time()
         if now - t0 > 2:
             logline(f"camera read blocked {now - t0:.0f}s")
         usable = ok and not _blank(frame)
+        if not ok:
+            self.cam_disrupted = True
         if usable:
+            self.cam_disrupted = False
             if self.cam_bad_since:
                 logline(f"camera back after {now - self.cam_bad_since:.0f}s")
                 self.cam_bad_since = 0.0
@@ -235,6 +283,15 @@ class Engine(threading.Thread):
             self._cam_dirty = False
             self.cam_alive_ts = 0.0
             self.release_cam()
+        if self._scan_cbs:
+            cbs, self._scan_cbs = self._scan_cbs, []
+            self.cam_alive_ts = 0.0
+            cams = self._probe()
+            for cb in cbs:
+                try:
+                    cb(cams)
+                except Exception as e:
+                    logline("scan callback error: " + repr(e))
 
         # Anything that should stop us guarding also drops a soft cover.
         interrupted = (self.manual_pause or not self.guarding
@@ -249,7 +306,7 @@ class Engine(threading.Thread):
                 self.stop_evt.wait(0.5)
                 return
             ok, frame, usable = self._read()
-            if ok:
+            if usable or (ok and not self.cam_disrupted):
                 self.cam_alive_ts = now
             if not usable:
                 # Camera gone while covered (e.g. monitor with the webcam was
@@ -307,10 +364,12 @@ class Engine(threading.Thread):
             return
 
         ok, frame, usable = self._read()
-        if ok:
+        if not self.guarding:
+            self.cam_alive_ts = 0.0
+        elif usable or (ok and not self.cam_disrupted):
             # Arm the lost-camera watchdog only while guarding; a camera that
             # never showed up (or idle/enroll) must not lock the PC.
-            self.cam_alive_ts = now if self.guarding else 0.0
+            self.cam_alive_ts = now
         if not usable:
             # Webcam asleep / powered down (USB power management), not absence.
             # Freeze the absence timer so it can't false-lock.

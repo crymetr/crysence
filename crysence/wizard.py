@@ -3,7 +3,7 @@ enrollment, lock mode and (optional) alerts, then arms the guard."""
 
 import customtkinter as ctk
 
-from . import models, ui
+from . import ui
 from .models import logline
 
 
@@ -112,17 +112,22 @@ class Wizard:
     def _camera(self):
         self._title("Pick your camera",
                     "Choose the camera that shows your face below.")
-        cams = models.probe_cameras()
-        vals = [f"Camera {i}" for i in cams] or ["-"]
         menu = ctk.CTkOptionMenu(
-            self.body, values=vals, command=self._pick_cam, fg_color=ui.CARD,
-            button_color=ui.ACCENT, button_hover_color=ui.ACCENT_HOVER,
-            dropdown_fg_color=ui.CARD)
-        if cams:
-            idx = self.eng.cam_index if self.eng.cam_index in cams else cams[0]
-            self.eng.cam_index = idx
-            menu.set(f"Camera {idx}")
+            self.body, values=["scanning..."], command=self._pick_cam,
+            fg_color=ui.CARD, button_color=ui.ACCENT,
+            button_hover_color=ui.ACCENT_HOVER, dropdown_fg_color=ui.CARD)
+        menu.set("scanning...")
         menu.pack(anchor="w")
+
+        def fill(cams):
+            try:
+                menu.configure(values=[f"Camera {i}" for i in cams] or ["-"])
+                menu.set(f"Camera {self.eng.cam_index}"
+                         if self.eng.cam_index in cams else "-")
+            except Exception:
+                pass    # wizard page already changed
+        # Probe on the engine thread (never drive DirectShow from two threads).
+        self.eng.request_scan(lambda cams: self.top.after(0, lambda: fill(cams)))
         self._preview_widget()
 
     def _pick_cam(self, val):
