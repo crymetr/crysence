@@ -128,6 +128,9 @@ Honest edges — a tool that watches your camera shouldn't hide them:
 
 ## Changelog
 
+### v0.3.3 (2026-09-24)
+- **Fixed:** turning off the monitor with the webcam (or unplugging the webcam) while you're at the desk did nothing; the app just paused. Now, if the camera disappears while guarding, the PC goes to the Windows lock screen after 6 s. A webcam that is only asleep (black frames) still doesn't trigger it.
+
 ### v0.3.2 (2026-09-24)
 - **Added:** the version is shown in the window title, under the logo, in the tray tooltip, and at the top of the tray menu.
 
