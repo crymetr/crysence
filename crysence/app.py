@@ -12,7 +12,7 @@ from pystray import Menu, MenuItem
 from PIL import Image, ImageDraw
 
 from . import ui  # noqa: F401  (sets appearance mode)
-from . import updater
+from . import __version__, updater
 from .engine import Engine
 from .gui import MainWindow
 from .cover import Cover
@@ -131,8 +131,10 @@ def main():
             shutdown()
 
     icon = pystray.Icon(
-        "CrySence", make_icon("idle"), "CrySence",
+        "CrySence", make_icon("idle"), f"CrySence v{__version__}",
         menu=Menu(
+            MenuItem(f"CrySence v{__version__}", lambda i, it: None, enabled=False),
+            Menu.SEPARATOR,
             MenuItem("Guarding", lambda i, it: toggle_guard(),
                      checked=lambda it: engine.guarding),
             MenuItem("Pause", lambda i, it: setattr(

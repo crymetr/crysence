@@ -3,7 +3,7 @@
 ; Output: dist\CrySence-Setup-<version>.exe
 
 #define AppName "CrySence"
-#define AppVersion "0.3.1"
+#define AppVersion "0.3.2"
 #define AppExe "CrySence.exe"
 #define AppPublisher "crymetr"
 
