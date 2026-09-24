@@ -3,7 +3,7 @@
 import time
 import customtkinter as ctk
 
-from . import __version__, config, models, ui
+from . import __version__, config, ui
 from .models import logline
 
 MUTED = "#8A8F98"
@@ -138,23 +138,16 @@ class MainWindow:
         logline("lock_mode = " + self.eng.lock_mode)
 
     def scan(self):
-        # Probe on a worker thread; opening DirectShow devices can take seconds
-        # and must not block the Tk mainloop (a stalled pump makes Windows drop
-        # the cover's keyboard hook).
-        import threading
-
-        def work():
-            cams = models.probe_cameras()
-            self.root.after(0, lambda: self._apply_cams(cams))
-        threading.Thread(target=work, daemon=True).start()
+        # The engine probes on its own thread: DirectShow driven from two
+        # threads at once kills the process, and the Tk pump must not block.
+        self.eng.request_scan(
+            lambda cams: self.root.after(0, lambda: self._apply_cams(cams)))
 
     def _apply_cams(self, cams):
         vals = [f"Camera {i}" for i in cams] or ["-"]
         self.cam_menu.configure(values=vals)
-        if cams:
-            idx = self.eng.cam_index if self.eng.cam_index in cams else cams[0]
-            self.eng.cam_index = idx
-            self.cam_menu.set(f"Camera {idx}")
+        if self.eng.cam_index in cams:
+            self.cam_menu.set(f"Camera {self.eng.cam_index}")
 
     def on_cam(self, val):
         if val.startswith("Camera"):
