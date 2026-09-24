@@ -52,7 +52,7 @@ def main():
     root = ctk.CTk()
     root.withdraw()
     engine = Engine()
-    cover = Cover(root)
+    cover = Cover(root, engine)
     state = {"wizard": None, "update_ver": None, "update_path": None}
 
     def ui_call(fn):

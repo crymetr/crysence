@@ -73,6 +73,7 @@ class Engine(threading.Thread):
         self.unknown_streak = 0
         self.close_streak = 0       # consecutive frames a stranger is "close"
         self._cam_dirty = False     # UI requested a camera switch
+        self.last_frame_ts = time.time()  # last good (non-blank) frame
 
     def _load_owner(self):
         if not os.path.exists(config.OWNER_PATH):
@@ -196,10 +197,15 @@ class Engine(threading.Thread):
                 return
             ok, frame = self.cap.read()
             if not ok or _blank(frame):
-                # camera asleep: keep the cover, but don't let it hard-lock
+                # Camera gone while covered (e.g. monitor with the webcam was
+                # switched off). The cover's watchdog sees last_frame_ts go
+                # stale and escalates to a Windows lock.
+                if not ok:
+                    self.release_cam()
                 self.last_seen = now
                 self.stop_evt.wait(0.5)
                 return
+            self.last_frame_ts = now
             self.latest_frame = frame
             h, w = frame.shape[:2]
             self.ensure_detector(w, h)
@@ -257,6 +263,7 @@ class Engine(threading.Thread):
             self.stop_evt.wait(1.0)
             return
 
+        self.last_frame_ts = now
         self.latest_frame = frame
         h, w = frame.shape[:2]
         self.ensure_detector(w, h)
@@ -383,6 +390,19 @@ class Engine(threading.Thread):
         self.set_state("guard")
         self.status = "guarding - present"
         logline("owner recognized - soft cover lifted")
+
+    def release_cover(self, why):
+        """Called from the UI thread when the cover is lifted by something other
+        than face recognition (emergency password, or camera lost -> Windows
+        lock). Resets timers so the engine doesn't re-cover immediately."""
+        now = time.time()
+        self.covered = False
+        self.known_streak = 0
+        self.close_streak = 0
+        self.last_seen = now
+        self.last_known = now
+        self.status = "guarding - " + why
+        logline("cover released: " + why)
 
     def _hard_lock(self, reason, frame, from_cover=False):
         # Lock FIRST - the screen must be secured before we spend any time on

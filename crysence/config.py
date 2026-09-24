@@ -10,6 +10,8 @@ import os
 import sys
 import json
 import copy
+import hmac
+import hashlib
 import threading
 
 APP_NAME = "CrySence"
@@ -49,6 +51,7 @@ DEFAULT_CONFIG = {
         "guarding": False,
         "lock_mode": "layered",   # "layered" | "screen"
         "configured": False,      # set true once the first-run wizard finishes
+        "unlock_pw": None,        # {"salt","hash","iter"} for the cover hotkey
     },
     "notifications": {
         # Windows toast: no config, on by default.
@@ -81,6 +84,24 @@ def load_config():
             return _merge(DEFAULT_CONFIG, json.load(fh))
     except Exception:
         return copy.deepcopy(DEFAULT_CONFIG)
+
+
+def hash_password(pw, iterations=120_000):
+    """Salted PBKDF2 record for the emergency-unlock password (never plain)."""
+    salt = os.urandom(16)
+    digest = hashlib.pbkdf2_hmac("sha256", pw.encode("utf-8"), salt,
+                                 iterations)
+    return {"salt": salt.hex(), "hash": digest.hex(), "iter": iterations}
+
+
+def check_password(rec, pw):
+    try:
+        digest = hashlib.pbkdf2_hmac("sha256", pw.encode("utf-8"),
+                                     bytes.fromhex(rec["salt"]),
+                                     int(rec["iter"]))
+        return hmac.compare_digest(digest.hex(), rec["hash"])
+    except Exception:
+        return False
 
 
 def save_config(cfg):

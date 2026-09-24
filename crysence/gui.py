@@ -3,7 +3,7 @@
 import time
 import customtkinter as ctk
 
-from . import models, ui
+from . import config, models, ui
 from .models import logline
 
 MUTED = "#8A8F98"
@@ -74,6 +74,7 @@ class MainWindow:
         row.pack(fill="x", padx=22, pady=2)
         for txt, cmd in (("Enroll face", self.eng.start_enroll),
                          ("Pause", self.toggle_pause),
+                         ("Unlock password", self.password_dialog),
                          ("Setup wizard", self._wizard)):
             ctk.CTkButton(row, text=txt, command=cmd, corner_radius=9,
                           fg_color=ui.CARD, hover_color="#2A2E37").pack(
@@ -171,6 +172,61 @@ class MainWindow:
 
     def toggle_pause(self):
         self.eng.manual_pause = not self.eng.manual_pause
+
+    def password_dialog(self):
+        """Set/clear the emergency password for the cover's hidden hotkey."""
+        top = ctk.CTkToplevel(self.root)
+        top.title("Emergency unlock")
+        top.geometry("400x330")
+        top.configure(fg_color=ui.BG)
+        top.transient(self.root)
+        top.after(50, top.grab_set)
+        has = bool(self.eng.cfg["settings"].get("unlock_pw"))
+        ctk.CTkLabel(
+            top, justify="left", wraplength=350, text=(
+                "On the black cover, press Ctrl+Alt+Shift+U and type this "
+                "password to unlock without the camera. 3 wrong tries go to "
+                "the Windows lock. With no password, the hotkey goes straight "
+                "to the Windows lock.")).pack(padx=22, pady=(18, 8))
+        status = ctk.CTkLabel(top, text="Password is set" if has
+                              else "No password set", text_color=MUTED)
+        status.pack()
+        e1 = ctk.CTkEntry(top, show="•", placeholder_text="New password")
+        e2 = ctk.CTkEntry(top, show="•", placeholder_text="Repeat")
+        e1.pack(fill="x", padx=22, pady=(10, 4))
+        e2.pack(fill="x", padx=22, pady=4)
+
+        def save():
+            a, b = e1.get(), e2.get()
+            if len(a) < 4:
+                status.configure(text="Use at least 4 characters",
+                                 text_color=ui.STATE_COLORS["alert"])
+                return
+            if a != b:
+                status.configure(text="Passwords don't match",
+                                 text_color=ui.STATE_COLORS["alert"])
+                return
+            self.eng.cfg["settings"]["unlock_pw"] = config.hash_password(a)
+            self.eng.save()
+            logline("emergency unlock password set")
+            top.destroy()
+
+        def clear():
+            self.eng.cfg["settings"]["unlock_pw"] = None
+            self.eng.save()
+            logline("emergency unlock password cleared")
+            top.destroy()
+
+        row = ctk.CTkFrame(top, fg_color="transparent")
+        row.pack(fill="x", padx=22, pady=(12, 16))
+        ctk.CTkButton(row, text="Save", command=save, fg_color=ui.ACCENT,
+                      hover_color=ui.ACCENT_HOVER, text_color="#0B0E10").pack(
+                          side="left", expand=True, fill="x", padx=3)
+        ctk.CTkButton(row, text="Remove", command=clear, fg_color=ui.CARD,
+                      hover_color="#2A2E37",
+                      state="normal" if has else "disabled").pack(
+                          side="left", expand=True, fill="x", padx=3)
+        e1.focus_set()
 
     def _wizard(self):
         if self.on_run_wizard:

@@ -36,7 +36,8 @@ still hard-locking for anyone else.
 | | |
 |---|---|
 | 🧠 **Knows your face** | Enroll once (OpenCV YuNet detection + SFace recognition, local ONNX models). It tells you apart from anyone else and lets only you back in. |
-| 🛡️ **Layered locking** | A soft cover drops when you step away and lifts itself the moment it recognizes you, no password. A stranger close to the screen, or a long absence, triggers a real Windows lock. |
+| 🛡️ **Layered locking** | A soft cover drops when you step away and lifts itself the moment it recognizes you, no password. A stranger close to the screen, or a long absence, triggers a real Windows lock. If the camera disappears under the cover (unplugged, or its monitor switched off), it hands over to the Windows lock screen after a few seconds instead of leaving you stuck. |
+| 🔑 **Emergency unlock** | On the cover, press Ctrl+Alt+Shift+U and type your unlock password (set in the main window) to get in without the camera. 3 wrong tries, or no password set, go to the Windows lock. |
 | 📸 **Intruder capture + alert** | An unknown face close to your screen is photographed and clipped locally, with an alert through whatever channel you enabled (Windows toast + optional email / push). |
 | 🎥 **Meeting-aware** | When another app uses your mic or webcam (Teams, Zoom, a browser call), CrySence releases the camera and pauses, then resumes when the call ends. Muting mid-call won't yank the camera back. |
 | ⌨️ **Keyboard-glance safe** | Looking down at your keyboard reads as "still you," so it won't lock in your face. |
@@ -126,6 +127,11 @@ Honest edges — a tool that watches your camera shouldn't hide them:
 - [ ] Linux and macOS support
 
 ## Changelog
+
+### v0.3.0 (2026-09-24)
+- **Fixed:** the soft cover no longer stays up forever when the webcam goes away (for example a monitor-mounted camera when the monitor is switched off). After 6 s without a camera frame it goes to the Windows lock screen.
+- **Fixed:** the cover resizes itself when a monitor is added, removed, or wakes up.
+- **Added:** emergency unlock. Ctrl+Alt+Shift+U on the cover asks for a password (salted PBKDF2, set via "Unlock password" in the main window).
 
 ### v0.2.1 — 2026-08-20
 - **Fixed:** no more false lock when the webcam briefly sleeps under USB power management.
