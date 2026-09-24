@@ -85,8 +85,22 @@ def check_in_background(on_ready):
 
 
 def apply(installer_path):
-    """Run the downloaded installer silently. The installer closes the running
-    app, replaces it, and relaunches into the tray."""
+    """Run the downloaded installer silently. The caller must then exit the
+    process for real (the installer can't replace files we still hold); the
+    installer replaces the app and relaunches it into the tray."""
+    if getattr(sys, "frozen", False):
+        # PyInstaller points the DLL search path at _internal; don't let the
+        # installer inherit that.
+        try:
+            import ctypes
+            ctypes.windll.kernel32.SetDllDirectoryW(None)
+        except Exception:
+            pass
+    log = os.path.join(config.DATA, "updates", "setup.log")
+    logline("launching installer " + installer_path)
     subprocess.Popen(
-        [installer_path, "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"],
-        close_fds=True)
+        [installer_path, "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART",
+         "/LOG=" + log],
+        close_fds=True,
+        creationflags=(subprocess.DETACHED_PROCESS
+                       | subprocess.CREATE_NEW_PROCESS_GROUP))

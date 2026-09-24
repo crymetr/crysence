@@ -3,7 +3,7 @@
 ; Output: dist\CrySence-Setup-<version>.exe
 
 #define AppName "CrySence"
-#define AppVersion "0.3.0"
+#define AppVersion "0.3.1"
 #define AppExe "CrySence.exe"
 #define AppPublisher "crymetr"
 
@@ -25,8 +25,10 @@ SolidCompression=yes
 WizardStyle=modern
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-; For in-app updates: close the running CrySence so files can be replaced.
-CloseApplications=yes
+; Restart Manager hangs trying to close the tray app (hidden Tk/pystray
+; windows never answer), so it's off; PrepareToInstall below waits for the
+; app's singleton mutex to go away and force-kills it if it doesn't.
+CloseApplications=no
 RestartApplications=no
 
 [Files]
@@ -57,3 +59,29 @@ Filename: "{app}\{#AppExe}"; Parameters: "--hidden"; Flags: nowait; \
 [UninstallDelete]
 ; Leave user data (config, enrolled face, captures) unless the user removes it.
 Type: dirifempty; Name: "{localappdata}\{#AppName}"
+
+[Code]
+const
+  AppMutex = 'CrySence-singleton-5DA096C7-0D55-4077-B2E5-FFAAF55E246D';
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  I, ResultCode: Integer;
+begin
+  Result := '';
+  // In-app update: the app exits right after launching us. Give it ~5 s.
+  for I := 1 to 10 do
+  begin
+    if not CheckForMutexes(AppMutex) then
+      Break;
+    Sleep(500);
+  end;
+  // Still running (older builds could linger invisibly): force it.
+  if CheckForMutexes(AppMutex) then
+  begin
+    Exec(ExpandConstant('{sys}\taskkill.exe'),
+      '/F /IM {#AppExe} /FI "USERNAME eq ' + GetUserNameString + '"',
+      '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Sleep(1000);
+  end;
+end;

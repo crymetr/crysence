@@ -1,5 +1,6 @@
 """Tray application entry point: engine + modern window + first-run wizard."""
 
+import os
 import sys
 import time
 import ctypes
@@ -110,12 +111,24 @@ def main():
             pass
         icon.update_menu()
 
+    def shutdown():
+        engine.stop()
+        icon.stop()
+        ui_call(root.destroy)
+        # Hard backstop: a process that lingers after the tray is gone blocks
+        # the updater from replacing files (and just looks hung).
+        t = threading.Timer(3.0, lambda: os._exit(0))
+        t.daemon = True
+        t.start()
+
     def apply_update():
         if state["update_path"]:
-            updater.apply(state["update_path"])
-            engine.stop()
-            icon.stop()
-            ui_call(root.destroy)
+            try:
+                updater.apply(state["update_path"])
+            except Exception as e:
+                logline("installer launch failed: " + repr(e))
+                return
+            shutdown()
 
     icon = pystray.Icon(
         "CrySence", make_icon("idle"), "CrySence",
@@ -131,8 +144,7 @@ def main():
             MenuItem(lambda it: f"Install update {state['update_ver']}",
                      lambda i, it: apply_update(),
                      visible=lambda it: state["update_path"] is not None),
-            MenuItem("Quit", lambda i, it: (engine.stop(), i.stop(),
-                                            ui_call(root.destroy))),
+            MenuItem("Quit", lambda i, it: shutdown()),
         ))
     engine.start()
     threading.Thread(target=icon.run, daemon=True).start()
@@ -146,6 +158,12 @@ def main():
         root.after(300, window.show)
 
     root.mainloop()
+    # Let the engine release the camera, then exit for real: stray non-daemon
+    # threads must never keep an invisible CrySence alive.
+    engine.stop()
+    engine.join(timeout=2.0)
+    logline("app exited")
+    os._exit(0)
 
 
 if __name__ == "__main__":
