@@ -3,7 +3,7 @@
 import time
 import customtkinter as ctk
 
-from . import config, models, ui
+from . import __version__, config, models, ui
 from .models import logline
 
 MUTED = "#8A8F98"
@@ -18,7 +18,7 @@ class MainWindow:
         self.visible = False
         self._img = None
 
-        root.title("CrySence")
+        root.title(f"CrySence v{__version__}")
         root.geometry("560x788")
         root.minsize(520, 720)
         root.configure(fg_color=ui.BG)
@@ -35,7 +35,7 @@ class MainWindow:
         title.pack(side="left")
         ctk.CTkLabel(title, text="CrySence", font=("Segoe UI", 25, "bold"),
                      text_color=ui.ACCENT).pack(anchor="w")
-        ctk.CTkLabel(title, text="presence lock", font=("Segoe UI", 12),
+        ctk.CTkLabel(title, text=f"presence lock  ·  v{__version__}", font=("Segoe UI", 12),
                      text_color=MUTED).pack(anchor="w")
         self.pill = ctk.CTkLabel(head, text="  idle  ", corner_radius=13,
                                  fg_color=ui.STATE_COLORS["idle"], height=28,

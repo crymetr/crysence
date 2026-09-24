@@ -128,6 +128,9 @@ Honest edges — a tool that watches your camera shouldn't hide them:
 
 ## Changelog
 
+### v0.3.2 (2026-09-24)
+- **Added:** the version is shown in the window title, under the logo, in the tray tooltip, and at the top of the tray menu.
+
 ### v0.3.1 (2026-09-24)
 - **Fixed:** "Install update" could hang: the app left an invisible process behind and the installer waited forever trying to close it. The app now exits for real, and the installer waits a few seconds, then force-closes a stuck copy. Quit uses the same clean exit.
 
