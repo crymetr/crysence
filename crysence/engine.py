@@ -14,6 +14,7 @@ from .models import logline
 DETECT_EVERY = 0.4
 ENROLL_SAMPLES = 20
 CAM_LOST_LOCK = 6       # seconds a guarding camera may be gone before lock
+CAM_REOPEN = 5          # seconds of bad/black frames before a fresh reopen
 
 
 def _num(v, default):
@@ -79,6 +80,8 @@ class Engine(threading.Thread):
         # there, just asleep). 0 = not armed: we're not expecting frames, or we
         # already locked for this loss.
         self.cam_alive_ts = 0.0
+        self.cam_bad_since = 0.0    # first failed/black read of this outage
+        self.cam_reopen_ts = 0.0
 
     def _load_owner(self):
         if not os.path.exists(config.OWNER_PATH):
@@ -181,6 +184,30 @@ class Engine(threading.Thread):
                 self.set_state("alert")
                 models.lock_workstation()
 
+    def _read(self):
+        """cap.read() plus outage bookkeeping. After the webcam's monitor comes
+        back, the old DirectShow handle can keep streaming black (or block)
+        instead of recovering, so a bad stream is dropped and reopened every
+        CAM_REOPEN seconds. Returns (ok, frame, usable)."""
+        t0 = time.time()
+        ok, frame = self.cap.read()
+        now = time.time()
+        if now - t0 > 2:
+            logline(f"camera read blocked {now - t0:.0f}s")
+        usable = ok and not _blank(frame)
+        if usable:
+            if self.cam_bad_since:
+                logline(f"camera back after {now - self.cam_bad_since:.0f}s")
+                self.cam_bad_since = 0.0
+            return ok, frame, True
+        if not self.cam_bad_since:
+            self.cam_bad_since = self.cam_reopen_ts = now
+            logline("camera " + ("black frames" if ok else "read failed"))
+        if not ok or now - self.cam_reopen_ts >= CAM_REOPEN:
+            self.cam_reopen_ts = now
+            self.release_cam()
+        return ok, frame, False
+
     def _detect(self, frame):
         _, faces = self.detector.detect(frame)
         scored = []
@@ -221,15 +248,13 @@ class Engine(threading.Thread):
                 self.last_seen = now
                 self.stop_evt.wait(0.5)
                 return
-            ok, frame = self.cap.read()
+            ok, frame, usable = self._read()
             if ok:
                 self.cam_alive_ts = now
-            if not ok or _blank(frame):
+            if not usable:
                 # Camera gone while covered (e.g. monitor with the webcam was
                 # switched off). The cover's watchdog sees last_frame_ts go
                 # stale and escalates to a Windows lock.
-                if not ok:
-                    self.release_cam()
                 self.last_seen = now
                 self.stop_evt.wait(0.5)
                 return
@@ -281,16 +306,14 @@ class Engine(threading.Thread):
             self.stop_evt.wait(1.0)
             return
 
-        ok, frame = self.cap.read()
+        ok, frame, usable = self._read()
         if ok:
             # Arm the lost-camera watchdog only while guarding; a camera that
             # never showed up (or idle/enroll) must not lock the PC.
             self.cam_alive_ts = now if self.guarding else 0.0
-        if not ok or _blank(frame):
+        if not usable:
             # Webcam asleep / powered down (USB power management), not absence.
             # Freeze the absence timer so it can't false-lock.
-            if not ok:
-                self.release_cam()
             self.last_seen = now
             self.set_state("paused")
             self.status = "camera unavailable (asleep?)"

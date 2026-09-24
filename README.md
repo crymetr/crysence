@@ -128,6 +128,9 @@ Honest edges — a tool that watches your camera shouldn't hide them:
 
 ## Changelog
 
+### v0.3.4 (2026-09-24)
+- **Fixed:** after the webcam's monitor was switched back on, the app could stay on "camera unavailable (asleep?)" with a frozen preview. A camera that fails or streams only black is now closed and reopened every 5 s until real frames come back. Camera loss, recovery, and blocked reads are written to the log.
+
 ### v0.3.3 (2026-09-24)
 - **Fixed:** turning off the monitor with the webcam (or unplugging the webcam) while you're at the desk did nothing; the app just paused. Now, if the camera disappears while guarding, the PC goes to the Windows lock screen after 6 s. A webcam that is only asleep (black frames) still doesn't trigger it.
 
