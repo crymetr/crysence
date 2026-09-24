@@ -13,6 +13,7 @@ from .models import logline
 
 DETECT_EVERY = 0.4
 ENROLL_SAMPLES = 20
+CAM_LOST_LOCK = 6       # seconds a guarding camera may be gone before lock
 
 
 def _num(v, default):
@@ -74,6 +75,10 @@ class Engine(threading.Thread):
         self.close_streak = 0       # consecutive frames a stranger is "close"
         self._cam_dirty = False     # UI requested a camera switch
         self.last_frame_ts = time.time()  # last good (non-blank) frame
+        # Last read from a present device (blank frames count: the webcam is
+        # there, just asleep). 0 = not armed: we're not expecting frames, or we
+        # already locked for this loss.
+        self.cam_alive_ts = 0.0
 
     def _load_owner(self):
         if not os.path.exists(config.OWNER_PATH):
@@ -148,6 +153,7 @@ class Engine(threading.Thread):
 
     # ---- main loop ------------------------------------------------------
     def run(self):
+        threading.Thread(target=self._cam_watchdog, daemon=True).start()
         while not self.stop_evt.is_set():
             try:
                 self._cycle()
@@ -155,6 +161,25 @@ class Engine(threading.Thread):
                 logline("engine error: " + repr(e))
                 self.stop_evt.wait(1.0)
         self.release_cam()
+
+    def _cam_watchdog(self):
+        """Own thread, so it still fires if cap.read() hangs on a device that
+        vanished (DirectShow does that). Camera gone while guarding (webcam
+        unplugged, or the monitor it hangs off switched off) -> Windows lock.
+        The soft cover has its own handover in cover.py."""
+        while not self.stop_evt.wait(1.0):
+            ts = self.cam_alive_ts
+            if (not ts or self.covered or not self.guarding
+                    or self.manual_pause or self.meeting_paused):
+                continue
+            gone = time.time() - ts
+            if gone >= CAM_LOST_LOCK:
+                self.cam_alive_ts = 0.0      # one lock per loss
+                logline(f"camera lost while guarding ({gone:.0f}s) "
+                        "-> Windows lock")
+                self.status = "LOCKED (camera lost)"
+                self.set_state("alert")
+                models.lock_workstation()
 
     def _detect(self, frame):
         _, faces = self.detector.detect(frame)
@@ -181,6 +206,7 @@ class Engine(threading.Thread):
         # never releases the device while we're inside cap.read().
         if self._cam_dirty:
             self._cam_dirty = False
+            self.cam_alive_ts = 0.0
             self.release_cam()
 
         # Anything that should stop us guarding also drops a soft cover.
@@ -196,6 +222,8 @@ class Engine(threading.Thread):
                 self.stop_evt.wait(0.5)
                 return
             ok, frame = self.cap.read()
+            if ok:
+                self.cam_alive_ts = now
             if not ok or _blank(frame):
                 # Camera gone while covered (e.g. monitor with the webcam was
                 # switched off). The cover's watchdog sees last_frame_ts go
@@ -217,6 +245,7 @@ class Engine(threading.Thread):
             return
 
         if self.manual_pause:
+            self.cam_alive_ts = 0.0
             self.release_cam()
             self.set_state("paused")
             self.status = "paused (manual)"
@@ -237,6 +266,7 @@ class Engine(threading.Thread):
                 self.free_since = 0.0
                 logline("meeting over, resuming")
         if self.meeting_paused:
+            self.cam_alive_ts = 0.0
             self.release_cam()
             self.set_state("paused")
             self.status = "paused - meeting (mic/camera in use)"
@@ -252,6 +282,10 @@ class Engine(threading.Thread):
             return
 
         ok, frame = self.cap.read()
+        if ok:
+            # Arm the lost-camera watchdog only while guarding; a camera that
+            # never showed up (or idle/enroll) must not lock the PC.
+            self.cam_alive_ts = now if self.guarding else 0.0
         if not ok or _blank(frame):
             # Webcam asleep / powered down (USB power management), not absence.
             # Freeze the absence timer so it can't false-lock.
@@ -399,6 +433,7 @@ class Engine(threading.Thread):
         self.covered = False
         self.known_streak = 0
         self.close_streak = 0
+        self.cam_alive_ts = 0.0     # a lost camera already got its lock
         self.last_seen = now
         self.last_known = now
         self.status = "guarding - " + why
@@ -425,6 +460,7 @@ class Engine(threading.Thread):
             except Exception as e:
                 logline("capture failed: " + repr(e))
 
+        self.cam_alive_ts = 0.0
         self.release_cam()
         self.close_streak = 0
         end = time.time() + models.COOLDOWN_AFTER_LOCK
