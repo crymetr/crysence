@@ -111,6 +111,20 @@ def main():
             pass
         icon.update_menu()
 
+    def check_updates():
+        def done(res):
+            if res == "newer":
+                return          # on_update_ready already toasted
+            msg = {"latest": f"You're on the latest version ({__version__}).",
+                   "busy": "Already checking, one moment.",
+                   }.get(res, "Couldn't reach GitHub. Try again later.")
+            try:
+                from .notify import _toast
+                _toast("CrySence", msg, None)
+            except Exception:
+                pass
+        updater.check_now(on_update_ready, done)
+
     def shutdown():
         engine.stop()
         icon.stop()
@@ -146,6 +160,8 @@ def main():
             MenuItem(lambda it: f"Install update {state['update_ver']}",
                      lambda i, it: apply_update(),
                      visible=lambda it: state["update_path"] is not None),
+            MenuItem("Check for updates", lambda i, it: check_updates(),
+                     visible=lambda it: state["update_path"] is None),
             MenuItem("Quit", lambda i, it: shutdown()),
         ))
     engine.start()

@@ -16,7 +16,7 @@
 ## How auto-update works
 
 Packaged builds check `https://api.github.com/repos/crymetr/crysence/releases/latest`
-on startup (background, non-blocking). If the latest tag is newer than the
+on startup and then hourly (background, non-blocking; tray "Check for updates" forces one). If the latest tag is newer than the
 running `__version__`, the app downloads the release's `CrySence-Setup-*.exe`
 into `%LOCALAPPDATA%\CrySence\updates\`, shows a toast, and adds an
 **Install update** item to the tray menu. Clicking it runs the installer

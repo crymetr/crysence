@@ -1,7 +1,7 @@
 """Auto-update via GitHub Releases.
 
-On startup (packaged builds only) this checks the repo's latest GitHub Release
-in the background. If a newer version is published, it downloads the signed
+On startup and then every hour (packaged builds only) this checks the repo's
+latest GitHub Release in the background; the tray can also ask right away. If a newer version is published, it downloads the signed
 installer and hands the path back; the app then offers a one-click install
 (runs the installer silently and relaunches). No servers, keys, or Pages to
 manage - releases are produced by CI on a tag.
@@ -12,6 +12,7 @@ Every failure here is swallowed: an update check must never crash or block.
 import os
 import sys
 import json
+import time
 import threading
 import subprocess
 import urllib.request
@@ -23,6 +24,9 @@ from . import __version__
 REPO = "crymetr/crysence"
 API_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
 _UA = "CrySence-updater"
+CHECK_EVERY = 3600      # seconds; unauthenticated API allows 60/hour per IP
+_lock = threading.Lock()
+_announced = None       # version already handed to on_ready
 
 
 def _ver(s):
@@ -40,8 +44,12 @@ def _is_newer(remote, local):
 
 
 def _run(on_ready):
+    """Returns "newer", "latest" or "failed". on_ready fires once per version."""
+    global _announced
     if not getattr(sys, "frozen", False):
-        return
+        return "latest"
+    if not _lock.acquire(blocking=False):
+        return "busy"       # a check is already running
     try:
         req = urllib.request.Request(
             API_URL, headers={"User-Agent": _UA,
@@ -50,13 +58,15 @@ def _run(on_ready):
             data = json.load(r)
         tag = (data.get("tag_name") or "").lstrip("v")
         if not _is_newer(tag, __version__):
-            return
+            return "latest"
+        if tag == _announced:
+            return "newer"
         asset = next(
             (a for a in data.get("assets", [])
              if a["name"].lower().startswith("crysence-setup")
              and a["name"].lower().endswith(".exe")), None)
         if not asset:
-            return
+            return "latest"     # release still building (no installer yet)
 
         updir = os.path.join(config.DATA, "updates")
         os.makedirs(updir, exist_ok=True)
@@ -75,13 +85,29 @@ def _run(on_ready):
                     fh.write(chunk)
             os.replace(tmp, dest)
         logline(f"update {tag} downloaded")
+        _announced = tag
         on_ready(tag, dest)
+        return "newer"
     except Exception as e:
         logline("update check failed: " + repr(e))
+        return "failed"
+    finally:
+        _lock.release()
 
 
 def check_in_background(on_ready):
-    threading.Thread(target=_run, args=(on_ready,), daemon=True).start()
+    """Check now, then every CHECK_EVERY seconds, for the life of the app."""
+    def loop():
+        while True:
+            _run(on_ready)
+            time.sleep(CHECK_EVERY)
+    threading.Thread(target=loop, daemon=True).start()
+
+
+def check_now(on_ready, on_done):
+    """Tray "Check for updates": one check, result string to on_done."""
+    threading.Thread(target=lambda: on_done(_run(on_ready)),
+                     daemon=True).start()
 
 
 def apply(installer_path):
