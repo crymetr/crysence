@@ -128,6 +128,9 @@ Honest edges — a tool that watches your camera shouldn't hide them:
 
 ## Changelog
 
+### v0.3.6 (2026-09-25)
+- **Fixed:** after the webcam's monitor was switched off for a long time, the app could freeze for good inside the camera driver and grow to several GB of memory. The camera now runs in a small separate process. If a camera call hangs (5 s for a read, 10 s for an open), that process is killed and a fresh one starts. The window, tray, and cover keep running, and the driver's leaked memory goes with the old process.
+
 ### v0.3.5 (2026-09-24)
 - **Fixed:** after a camera disconnect the engine could get stuck in an error loop and only came back after a manual Rescan. A camera handle that throws is now closed and reopened automatically.
 - **Fixed:** Rescan could crash the app while the engine was using the camera. All camera probing now runs on the engine thread (Rescan and the setup wizard).

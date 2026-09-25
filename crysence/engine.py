@@ -8,7 +8,7 @@ import threading
 import cv2
 import numpy as np
 
-from . import config, models, notify
+from . import camproc, config, models, notify
 from .models import logline
 
 DETECT_EVERY = 0.4
@@ -42,6 +42,7 @@ class Engine(threading.Thread):
         s = self.cfg["settings"]
 
         self.cap = None
+        self.cams = camproc.CamWorker()     # engine thread only
         self.cam_index = s.get("cam_index")
         self.detector = None
         self.det_size = None
@@ -113,7 +114,7 @@ class Engine(threading.Thread):
     def _probe(self):
         """Engine thread only. Releases our device first so it probes too."""
         self.release_cam()
-        cams = models.probe_cameras()
+        cams = self.cams.probe()
         # Never switch away from the user's pick: a missing camera must lock,
         # not silently fall back to another one.
         if self.cam_index is None and cams:
@@ -152,22 +153,13 @@ class Engine(threading.Thread):
     def open_cam(self):
         self.release_cam()
         if self.cam_index is None:
-            cams = models.probe_cameras()
+            cams = self.cams.probe()
             self.cam_index = cams[0] if cams else None
         if self.cam_index is None:
             return False
-        try:
-            cap = cv2.VideoCapture(self.cam_index, cv2.CAP_DSHOW)
-            ok = cap.isOpened()
-        except Exception as e:
-            logline("camera open error: " + repr(e))
-            return False
-        if not ok:
+        cap = self.cams.open(self.cam_index)
+        if cap is None:
             self.cam_disrupted = True
-            try:
-                cap.release()
-            except Exception:
-                pass
             return False
         self.cap = cap
         self.det_size = None
@@ -204,6 +196,7 @@ class Engine(threading.Thread):
                 self.release_cam()
                 self.stop_evt.wait(1.0)
         self.release_cam()
+        self.cams.stop()
 
     def _cam_watchdog(self):
         """Own thread, so it still fires if cap.read() hangs on a device that
