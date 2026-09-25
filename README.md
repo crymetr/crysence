@@ -128,6 +128,10 @@ Honest edges — a tool that watches your camera shouldn't hide them:
 
 ## Changelog
 
+### v0.3.7 (2026-09-25)
+- **Changed:** the app checks for updates every hour while it runs, not only at startup, so you no longer have to restart it to see an update.
+- **Added:** "Check for updates" in the tray menu checks right away and tells you if you're already on the latest version.
+
 ### v0.3.6 (2026-09-25)
 - **Fixed:** after the webcam's monitor was switched off for a long time, the app could freeze for good inside the camera driver and grow to several GB of memory. The camera now runs in a small separate process. If a camera call hangs (5 s for a read, 10 s for an open), that process is killed and a fresh one starts. The window, tray, and cover keep running, and the driver's leaked memory goes with the old process.
 
