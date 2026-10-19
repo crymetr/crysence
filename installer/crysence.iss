@@ -3,7 +3,7 @@
 ; Output: dist\CrySence-Setup-<version>.exe
 
 #define AppName "CrySence"
-#define AppVersion "0.3.7"
+#define AppVersion "0.3.8"
 #define AppExe "CrySence.exe"
 #define AppPublisher "crymetr"
 
@@ -13,6 +13,7 @@ AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisher={#AppPublisher}
 AppSupportURL=https://github.com/crymetr/crysence
+InfoBeforeFile=privacy.txt
 DefaultDirName={localappdata}\Programs\{#AppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest

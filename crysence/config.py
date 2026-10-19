@@ -52,6 +52,7 @@ DEFAULT_CONFIG = {
         "lock_mode": "layered",   # "layered" | "screen"
         "configured": False,      # set true once the first-run wizard finishes
         "unlock_pw": None,        # {"salt","hash","iter"} for the cover hotkey
+        "auto_update": True,      # hourly GitHub release check (tray toggle)
     },
     "notifications": {
         # Windows toast: no config, on by default.

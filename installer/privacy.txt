@@ -1,0 +1,9 @@
+CrySence privacy
+
+CrySence watches your webcam on this computer only. Face detection, recognition and captures never leave your machine. Your face is stored as a numeric embedding, not as an image. No telemetry, no account.
+
+Network connections:
+- Alerts: only the channels you turn on and fill in yourself (e-mail, ntfy, Telegram, Resend). They send the alert text and, if you choose, the captured photo to that service. Its own privacy policy applies. All are off by default.
+- Update check: CrySence asks GitHub (api.github.com) for the newest release on start and every hour. Nothing about you is sent. Turn it off in the tray menu: "Check for updates automatically".
+
+Full text: https://github.com/crymetr/crysence#privacy-first

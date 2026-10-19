@@ -125,6 +125,11 @@ def main():
                 pass
         updater.check_now(on_update_ready, done)
 
+    def toggle_auto_update():
+        s = engine.cfg["settings"]
+        s["auto_update"] = not s.get("auto_update", True)
+        engine.save()
+
     def shutdown():
         engine.stop()
         icon.stop()
@@ -162,13 +167,16 @@ def main():
                      visible=lambda it: state["update_path"] is not None),
             MenuItem("Check for updates", lambda i, it: check_updates(),
                      visible=lambda it: state["update_path"] is None),
+            MenuItem("Check for updates automatically", lambda i, it: toggle_auto_update(),
+                     checked=lambda it: engine.cfg["settings"].get("auto_update", True)),
             MenuItem("Quit", lambda i, it: shutdown()),
         ))
     engine.start()
     threading.Thread(target=icon.run, daemon=True).start()
     root.after(1500, reassert_icon)
     logline("app started")
-    updater.check_in_background(on_update_ready)  # GitHub Releases (frozen only)
+    updater.check_in_background(  # GitHub Releases (frozen only)
+        on_update_ready, lambda: engine.cfg["settings"].get("auto_update", True))
 
     if not engine.cfg["settings"].get("configured"):
         root.after(400, run_wizard)

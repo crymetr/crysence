@@ -49,10 +49,17 @@ This watches your webcam, so trust matters. CrySence is built to be auditable:
 
 - **100% local.** Face detection, recognition, and captures never leave your
   machine.
-- **No telemetry, no account, no network calls** — except the one update check
+- **No telemetry, no account, no network calls** — except the update check
   to GitHub and the alert channel _you_ choose to configure. That's it, and you
   can read every one of them in [`crysence/notify.py`](crysence/notify.py) and
   [`crysence/updater.py`](crysence/updater.py).
+- **Update check:** the packaged app asks GitHub (`api.github.com`) for the
+  newest release on start and every hour. Nothing about you is sent. Turn it off
+  in the tray menu: **Check for updates automatically**.
+- **Alerts** (all off by default) send the alert text and, if you choose, the
+  captured photo to the service you set up (your SMTP server, ntfy, Telegram or
+  Resend). That service's own privacy policy applies.
+- The installer shows this notice before it installs.
 - Your face is stored only as a **numeric embedding** (`owner_face.npy`), never
   as images.
 - No secrets in this repo. All config lives under `%LOCALAPPDATA%\CrySence\`.
@@ -126,7 +133,24 @@ Honest edges — a tool that watches your camera shouldn't hide them:
 - [ ] Per-app "always allow this face" for a shared desk
 - [ ] Linux and macOS support
 
+## Code signing policy
+
+Windows releases (the installer and the portable zip) are built by
+[GitHub Actions](.github/workflows/release.yml) straight from this repository.
+Signing them through the [SignPath Foundation](https://signpath.org) open source
+program has been applied for; until then they are unsigned.
+
+- Committers and reviewers: [repository contributors](https://github.com/crymetr/crysence/graphs/contributors)
+- Approvers: [owner](https://github.com/crymetr)
+
+Every release tag is approved by hand before it is published. See
+[Privacy first](#privacy-first) for what the app sends over the network.
+
 ## Changelog
+
+### v0.3.8 (2026-10-19)
+- **Added:** "Check for updates automatically" in the tray menu (on by default). Turn it off and CrySence makes no network calls unless you set up an alert; "Check for updates" still works.
+- **Added:** the installer shows a short privacy notice before it installs.
 
 ### v0.3.7 (2026-09-25)
 - **Changed:** the app checks for updates every hour while it runs, not only at startup, so you no longer have to restart it to see an update.

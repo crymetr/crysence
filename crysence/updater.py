@@ -1,6 +1,6 @@
 """Auto-update via GitHub Releases.
 
-On startup and then every hour (packaged builds only) this checks the repo's
+On startup and then every hour (packaged builds only, unless turned off) this checks the repo's
 latest GitHub Release in the background; the tray can also ask right away. If a newer version is published, it downloads the signed
 installer and hands the path back; the app then offers a one-click install
 (runs the installer silently and relaunches). No servers, keys, or Pages to
@@ -95,11 +95,13 @@ def _run(on_ready):
         _lock.release()
 
 
-def check_in_background(on_ready):
-    """Check now, then every CHECK_EVERY seconds, for the life of the app."""
+def check_in_background(on_ready, enabled=lambda: True):
+    """Check now, then every CHECK_EVERY seconds, for the life of the app,
+    while enabled() says so (tray: "Check for updates automatically")."""
     def loop():
         while True:
-            _run(on_ready)
+            if enabled():
+                _run(on_ready)
             time.sleep(CHECK_EVERY)
     threading.Thread(target=loop, daemon=True).start()
 
