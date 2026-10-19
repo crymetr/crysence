@@ -25,3 +25,6 @@ settings.json
 .vscode/
 .idea/
 Thumbs.db
+
+# Cloudflare wrangler cache (account info)
+.wrangler/
