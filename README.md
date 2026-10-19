@@ -12,6 +12,10 @@ unknown face gets close to your screen it captures a photo and alerts you. It
 gets out of the way for video calls. Everything runs **locally** — no cloud, no
 account, no telemetry.
 
+[![CrySence trailer](docs/promo.gif)](https://cryme.tr/crysence/)
+
+_[Watch the trailer with sound](https://cryme.tr/crysence/)_
+
 ![How CrySence works](docs/how-it-works.svg)
 
 ## Screenshots
